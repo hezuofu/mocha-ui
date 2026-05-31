@@ -4594,3 +4594,9 @@ textarea#msg::placeholder {
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.22)}
 *{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
+/* ── Stream fade animation ── */
+.stream-fade-active .stream-fade-word{display:inline}
+.stream-fade-word.is-new{animation:stream-fade-in .24s cubic-bezier(.2,.7,.2,1) both}
+@keyframes stream-fade-in{0%{opacity:0}45%{opacity:.45}100%{opacity:1}}
+/* ── Session project dot ── */
+.session-project-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle;flex-shrink:0}

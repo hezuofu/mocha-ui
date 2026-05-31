@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getVersion, getHealth, getAgentHealth, logout } from '../../api/endpoints';
+import { apiGet } from '../../api/client';
 
 export default function SystemPanel() {
   const [version, setVersion] = useState('');
@@ -55,6 +56,34 @@ export default function SystemPanel() {
             <span className="info-value" style={{ color: statusColor }}>{agentStatus}</span>
           </div>
         </div>
+      </section>
+
+      <section className="settings-section">
+        <h4>Gateway</h4>
+        <div className="system-info">
+          <div className="info-row">
+            <span>Connection</span>
+            <span className="info-value" style={{ color: (agentHealth as Record<string, unknown>)?.gateway_connected ? 'var(--success)' : 'var(--error)' }}>
+              {(agentHealth as Record<string, unknown>)?.gateway_connected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <h4>MCP Servers</h4>
+        <p style={{ fontSize: 12, color: 'var(--muted)', padding: '0 0 8px' }}>Model Context Protocol servers provide additional tools to the agent.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div className="info-row" style={{ opacity: 0.5 }}>
+            <span>No MCP servers configured</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <h4>Passkeys</h4>
+        <p style={{ fontSize: 12, color: 'var(--muted)', padding: '0 0 8px' }}>WebAuthn passkeys for passwordless authentication.</p>
+        <button className="btn-primary-sm" disabled style={{ opacity: 0.5 }}>Register Passkey</button>
       </section>
 
       <section className="settings-section">

@@ -36,6 +36,16 @@ export default function Rail({ activePanel, onSwitch }: RailProps) {
           <RailIcon panelId={tab.id} />
         </button>
       ))}
+      <button
+        className="rail-btn nav-tab dashboard-link"
+        data-panel="dashboard"
+        onClick={() => window.open('/dashboard', '_blank')}
+        data-tooltip="Dashboard"
+        aria-label="Dashboard"
+        title="Dashboard"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+      </button>
       <div className="rail-spacer" />
       <button
         className={`rail-btn nav-tab ${activePanel === 'settings' ? 'active' : ''}`}

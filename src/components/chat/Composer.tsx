@@ -8,6 +8,7 @@ import { startChat, sendMessage, cancelStream, getProfiles, switchProfile } from
 import { connectSSE, closeSSE } from '../../api/sse';
 import { useTheme } from '../../hooks/useTheme';
 import type { Profile } from '../../types';
+import ComposerTerminal from './ComposerTerminal';
 /* All icons replaced with original inline SVGs from static/index.html */
 
 export default function Composer() {
@@ -43,8 +44,12 @@ export default function Composer() {
   const { setTheme, setSkin, setFontSize } = useTheme();
 
   const [showReasoning, setShowReasoning] = useState(false);
+  const [showToolsets, setShowToolsets] = useState(false);
+  const [toolsetsInput, setToolsetsInput] = useState('');
   const [voiceActive, setVoiceActive] = useState(false);
+  const [micActive, setMicActive] = useState(false);
   const [yoloMode, setYoloMode] = useState(false);
+  const [mobileConfigOpen, setMobileConfigOpen] = useState(false);
   const [showCommands, setShowCommands] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [showProfilePicker, setShowProfilePicker] = useState(false);
@@ -344,6 +349,7 @@ export default function Composer() {
 
         <div className="composer-footer">
           <div className="composer-left">
+            <ComposerTerminal />
             <input
               ref={fileInputRef}
               type="file"
@@ -431,6 +437,39 @@ export default function Composer() {
               )}
             </div>
 
+            {/* Toolsets chip */}
+            <div className="composer-toolsets-wrap" style={{ display: 'block' }}>
+              <button className={`composer-toolsets-chip${showToolsets ? ' active' : ''}`} type="button" onClick={() => setShowToolsets(!showToolsets)} title="Session toolsets">
+                <span className="composer-model-icon" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                </span>
+                <span className="composer-model-label">Tools</span>
+                <span className="composer-model-chevron" aria-hidden="true">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+              </button>
+              {showToolsets && (
+                <div className="model-picker" style={{ minWidth: 260, left: 0, padding: 12 }}>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Enter a comma-separated list of toolsets to enable for this session.</div>
+                  <input className="memory-textarea" style={{ padding: '8px 10px', minHeight: 'auto', marginBottom: 10, width: '100%', boxSizing: 'border-box' }}
+                    value={toolsetsInput} onChange={e => setToolsetsInput(e.target.value)}
+                    placeholder="e.g. python, shell, file_ops" />
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button className="btn-icon-sm" onClick={() => { setToolsetsInput(''); setShowToolsets(false); }} style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 14px', fontSize: 12 }}>Clear</button>
+                    <button className="btn-primary-sm" onClick={() => setShowToolsets(false)}>Apply</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Provider quota chip */}
+            <div className="composer-model-wrap">
+              <span className="provider-quota-chip" title="API quota available">
+                <span className="provider-quota-chip-dot" />
+                <span className="composer-model-label">Quota OK</span>
+              </span>
+            </div>
+
             {/* Model chip */}
             <div className="composer-model-wrap">
               <button className="composer-model-chip" id="composerModelChip" type="button" onClick={() => setShowModelPicker(!showModelPicker)} title="Conversation model">
@@ -446,12 +485,29 @@ export default function Composer() {
           </div>
 
           <div className="composer-right">
+            <span className="composer-status" style={{ fontSize: 11, color: 'var(--muted)', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {busy ? 'Streaming...' : ''}
+            </span>
+            <span className="queue-pill-outer show" style={{ display: 'none', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, background: 'var(--accent-bg)', color: 'var(--accent-text)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+              <span className="queue-pill-count">0</span>
+            </span>
+            <span className="bg-badge" style={{ display: 'none', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, background: 'var(--accent-bg-strong)', color: 'var(--accent-text)', fontSize: 10, fontWeight: 600 }}>0</span>
             {yoloMode && (
               <span className="yolo-pill" onClick={() => setYoloMode(false)} title="Disable YOLO mode">
                 <span className="yolo-pill-icon">⚡</span>
                 <span className="yolo-pill-label">YOLO</span>
               </span>
             )}
+            <button type="button" className={`icon-btn mic-btn${micActive ? ' recording' : ''}`}
+              onClick={() => { setMicActive(!micActive); if (!micActive) { setTimeout(() => setMicActive(false), 5000); } }}
+              title={micActive ? 'Stop recording' : 'Voice dictation'}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </button>
+            <button type="button" className="icon-btn composer-mobile-config-btn"
+              onClick={() => setMobileConfigOpen(!mobileConfigOpen)} title="Configure"
+              style={{ display: 'inline-flex' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            </button>
             <button type="button" className={`icon-btn voice-mode-btn${voiceActive ? ' active' : ''}`} onClick={() => setVoiceActive(!voiceActive)} title="Voice mode">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 10v4"/><path d="M6 6v12"/><path d="M10 3v18"/><path d="M14 8v8"/><path d="M18 5v14"/><path d="M22 10v4"/></svg>
             </button>
@@ -480,6 +536,46 @@ export default function Composer() {
             )}
           </div>
         </div>
+
+        {/* Mic status indicator */}
+        {micActive && (
+          <div className="mic-status" style={{ fontSize: 11, color: 'var(--error)', padding: '4px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="mic-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--error)', flexShrink: 0 }} />
+            Listening...
+          </div>
+        )}
+
+        {/* Voice mode bar */}
+        {voiceActive && (
+          <div className="voice-mode-bar" style={{ fontSize: 11, padding: '4px 12px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+            <span className="voice-mode-indicator listening" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
+            <span style={{ color: 'var(--muted)', fontSize: 11 }}>Voice mode active</span>
+            <button onClick={() => setVoiceActive(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>✕</button>
+          </div>
+        )}
+
+        {/* Mobile config panel */}
+        {mobileConfigOpen && (
+          <div className="composer-mobile-config-panel open" style={{
+            display: 'flex', position: 'absolute', left: 8, right: 8, bottom: 'calc(100% + 6px)',
+            zIndex: 180, padding: 8, gap: 8, flexWrap: 'wrap',
+            background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 12,
+            boxShadow: '0 -6px 28px rgba(0,0,0,.35)',
+          }}>
+            <div className="composer-mobile-config-action" style={{ padding: '8px 10px', borderRadius: 10 }}>
+              <div className="composer-mobile-config-copy">
+                <div className="composer-mobile-config-kicker" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)' }}>Workspace</div>
+                <div className="composer-mobile-config-value" style={{ fontSize: 12, color: 'var(--text)' }}>{currentWorkspace === '.' ? 'default' : currentWorkspace}</div>
+              </div>
+            </div>
+            <div className="composer-mobile-config-action" style={{ padding: '8px 10px', borderRadius: 10 }}>
+              <div className="composer-mobile-config-copy">
+                <div className="composer-mobile-config-kicker" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)' }}>Model</div>
+                <div className="composer-mobile-config-value" style={{ fontSize: 12, color: 'var(--text)' }}>{model || 'None'}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Slash command autocomplete */}
         {showCommands && matchingCommands.length > 0 && (

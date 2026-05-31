@@ -28,6 +28,23 @@ export default function MainArea() {
   const compressionMessage = useStreamingStore(s => s.compressionMessage);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Load Prism.js for code highlighting
+  useEffect(() => {
+    if ((window as unknown as Record<string, unknown>).Prism) return;
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css';
+    document.head.appendChild(css);
+    const js = document.createElement('script');
+    js.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js';
+    js.onload = () => {
+      const auto = document.createElement('script');
+      auto.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js';
+      document.head.appendChild(auto);
+    };
+    document.head.appendChild(js);
+  }, []);
+
   // Connect approval SSE
   useEffect(() => {
     if (!activeSid) return;
@@ -232,6 +249,7 @@ export default function MainArea() {
       )}
       {uploading && <UploadBar progress={uploadProgress} />}
       <UpdateBanner />
+      {false && <HandoffHint sessionId={activeSid || ''} />}
       <Composer />
     </main>
   );
@@ -266,6 +284,17 @@ function MessageItem({ message, index, isLast }: { message: Message; index: numb
     }
   }, [activeSid, index, busy, message.content]);
 
+  const handleSpeak = useCallback(() => {
+    if (!message.content || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(message.content);
+    u.rate = 0.9; u.lang = 'en-US';
+    window.speechSynthesis.speak(u);
+  }, [message.content]);
+
+  // Image lightbox
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
   if (isTool) return null;
 
   const role = isUser ? 'user' : isSystem ? 'system' : 'assistant';
@@ -296,6 +325,9 @@ function MessageItem({ message, index, isLast }: { message: Message; index: numb
         {/* Message footer with actions */}
         <div className="msg-foot">
           <div className="msg-actions">
+            {!isUser && <button className="msg-action-btn" onClick={handleSpeak} title="Read aloud">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            </button>}
             <button className="msg-action-btn" onClick={handleCopy} title="Copy">
               {copied
                 ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -347,6 +379,14 @@ function MarkdownContent({ content }: { content: string }) {
         elements.push(<MermaidRenderer key={key++} code={code} />);
       } else if (lang === 'katex' || lang === 'math') {
         elements.push(<div key={key++} className="code-block-wrap"><KaTeXRenderer content={`$$${code}$$`} /></div>);
+      } else if (lang === 'csv') {
+        elements.push(<CSVTable key={key++} code={code} />);
+      } else if (lang === 'diff') {
+        elements.push(<DiffView key={key++} code={code} />);
+      } else if (lang === 'html') {
+        elements.push(<HTMLPreview key={key++} code={code} />);
+      } else if (lang === 'excalidraw') {
+        elements.push(<div key={key++} className="code-block-wrap"><pre className="code-block"><code>{code}</code></pre><div style={{ padding: 8, fontSize: 11, color: 'var(--muted)' }}>Excalidraw: paste this JSON into excalidraw.com</div></div>);
       } else {
         elements.push(<CodeBlock key={key++} code={code} language={lang} />);
       }
@@ -450,11 +490,23 @@ function MarkdownContent({ content }: { content: string }) {
 
 function CodeBlock({ code, language }: { code: string; language: string }) {
   const [copied, setCopied] = useState(false);
+  const codeRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!codeRef.current) return;
+    const Prism = (window as unknown as Record<string, unknown>).Prism;
+    if (Prism && typeof (Prism as Record<string, unknown>).highlightElement === 'function') {
+      try { (Prism as Record<string, unknown>).highlightElement?.(codeRef.current); } catch {}
+    }
+  }, [code, language]);
+
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [code]);
+
+  const langClass = language ? `language-${language}` : '';
 
   return (
     <div className="code-block-wrap">
@@ -464,7 +516,7 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
           {copied ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
         </button>
       </div>
-      <pre className="code-block"><code>{code}</code></pre>
+      <pre className="code-block"><code ref={codeRef} className={langClass}>{code}</code></pre>
     </div>
   );
 }
@@ -629,6 +681,64 @@ function UploadBar({ progress }: { progress: number }) {
   return (
     <div className="upload-bar-wrap active" style={{ margin: '0 auto', maxWidth: 780 }}>
       <div className="upload-bar" style={{ width: `${progress}%` }} />
+    </div>
+  );
+}
+
+/** Inline CSV table renderer */
+function CSVTable({ code }: { code: string }) {
+  const lines = code.trim().split('\n');
+  if (lines.length === 0) return null;
+  const rows = lines.map(l => l.split(',').map(c => c.trim()));
+  const header = rows[0];
+  const body = rows.slice(1);
+  return (
+    <div className="code-block-wrap" style={{ maxHeight: 300, overflow: 'auto' }}>
+      <div className="code-block-header"><span className="code-block-lang">CSV</span></div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+        <thead><tr>{header.map((h, i) => <th key={i} style={{ padding: '4px 8px', border: '1px solid var(--border)', background: 'var(--hover-bg)', position: 'sticky', top: 0 }}>{h}</th>)}</tr></thead>
+        <tbody>{body.map((row, ri) => <tr key={ri}>{row.map((c, ci) => <td key={ci} style={{ padding: '3px 8px', border: '1px solid var(--border)' }}>{c}</td>)}</tr>)}</tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Inline diff viewer */
+function DiffView({ code }: { code: string }) {
+  const lines = code.split('\n');
+  return (
+    <div className="diff-block" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', margin: '8px 0' }}>
+      <div className="code-block-header"><span className="code-block-lang">Diff</span></div>
+      {lines.map((line, i) => {
+        const cls = line.startsWith('+') ? 'diff-add' : line.startsWith('-') ? 'diff-del' : '';
+        return <div key={i} className={`diff-line ${cls}`} style={{ padding: '0 10px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{line}</div>;
+      })}
+    </div>
+  );
+}
+
+/** Sandboxed HTML preview */
+function HTMLPreview({ code }: { code: string }) {
+  return (
+    <div className="code-block-wrap">
+      <div className="code-block-header"><span className="code-block-lang">HTML</span></div>
+      <iframe srcDoc={code} sandbox="allow-scripts" style={{ width: '100%', height: 300, border: 'none', borderTop: '1px solid var(--border)' }} title="HTML preview" />
+    </div>
+  );
+}
+
+/** Handoff hint bar */
+function HandoffHint({ sessionId: _sid }: { sessionId: string }) {
+  return (
+    <div className="handoff-hint-container is-visible" style={{ padding: '8px 16px', margin: '0 auto', maxWidth: 780 }}>
+      <div className="handoff-hint-bar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 13, background: 'var(--surface)', fontSize: 12 }}>
+        <span className="handoff-hint-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }} />
+        <span className="handoff-hint-label" style={{ fontWeight: 700 }}>Session handoff available</span>
+        <div className="handoff-hint-actions" style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button className="handoff-hint-action" style={{ border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>Continue</button>
+          <button className="handoff-hint-dismiss" style={{ border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>Dismiss</button>
+        </div>
+      </div>
     </div>
   );
 }
