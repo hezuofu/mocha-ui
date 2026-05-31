@@ -14,7 +14,7 @@ declare global {
       options: Record<string, unknown>;
       element?: HTMLElement;
     };
-    FitAddon?: new () => { fit(): void; dispose(): void };
+
   }
 }
 
@@ -37,10 +37,7 @@ export default function ComposerTerminal() {
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js';
       script.onload = () => {
-        const fit = document.createElement('script');
-        fit.src = 'https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js';
-        fit.onload = () => { setLoaded(true); initTerminal(); };
-        document.head.appendChild(fit);
+        setLoaded(true); initTerminal();
       };
       document.head.appendChild(script);
     }
@@ -55,7 +52,7 @@ export default function ComposerTerminal() {
       rows: collapsed ? 4 : 20,
     });
     term.open(terminalRef.current);
-    if (window.FitAddon) { const fit = new window.FitAddon!(); term.loadAddon(fit); try { fit.fit(); } catch {} }
+    
     term.writeln('Hermes Terminal');
     term.writeln('');
 

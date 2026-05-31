@@ -12,6 +12,11 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Request browser notification permission
+if ('Notification' in window && Notification.permission === 'default') {
+  setTimeout(() => { Notification.requestPermission().catch(() => {}); }, 5000);
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>

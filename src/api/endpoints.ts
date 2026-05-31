@@ -50,15 +50,16 @@ export const searchSessions = (query: string) =>
   apiPost<{ sessions: Session[] }>('/api/sessions/search', { query });
 
 // ── Chat ──
-export const startChat = (sessionId: string, model?: string, provider?: string) =>
+export const startChat = (sessionId: string, model?: string, provider?: string, message?: string) =>
   apiPost<{ stream_id: string }>('/api/chat/start', {
     session_id: sessionId,
     model,
     provider,
+    message,
   });
 
 export const sendMessage = (sessionId: string, message: string, streamId: string, files?: string[]) =>
-  apiPost('/api/chat/send', {
+  apiPost('/api/chat', {
     session_id: sessionId,
     message,
     stream_id: streamId,

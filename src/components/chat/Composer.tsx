@@ -212,20 +212,15 @@ export default function Composer() {
     setBusy(true);
 
     try {
-      let streamId = activeStreamId;
-      if (!streamId) {
-        const res = await startChat(activeSid, model);
-        streamId = res.stream_id;
-        setActiveStreamId(streamId);
-      }
-
       addMessage({ role: 'user', content: text });
-      startStream(streamId);
-
       const filePaths = pendingFiles.map(f => f.name);
       clearPendingFiles();
+      startStream('');
 
-      await sendMessage(activeSid, text, streamId, filePaths.length > 0 ? filePaths : undefined);
+      const res = await startChat(activeSid, model, undefined, text);
+      const streamId = res.stream_id;
+      setActiveStreamId(streamId);
+      startStream(streamId);
 
       connectSSE(activeSid, streamId, (event, data) => {
         try {
@@ -490,10 +485,10 @@ export default function Composer() {
             <span className="composer-status" style={{ fontSize: 11, color: 'var(--muted)', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {busy ? 'Streaming...' : ''}
             </span>
-            <span className="queue-pill-outer show" style={{ display: queueCount > 0 ? .inline-flex. : .none., alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, background: 'var(--accent-bg)', color: 'var(--accent-text)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-              <span className="queue-pill-count">{queueCount}</span>
+            <span className="queue-pill-outer show" style={{ display: false ? "none" : "none", alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, background: 'var(--accent-bg)', color: 'var(--accent-text)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+              <span className="queue-pill-count">0</span>
             </span>
-            <span className="bg-badge" style={{ display: queueCount > 0 ? .inline-flex. : .none., alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, background: 'var(--accent-bg-strong)', color: 'var(--accent-text)', fontSize: 10, fontWeight: 600 }}>{queueCount}</span>
+            <span className="bg-badge" style={{ display: false ? "none" : "none", alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, background: 'var(--accent-bg-strong)', color: 'var(--accent-text)', fontSize: 10, fontWeight: 600 }}>0</span>
             {yoloMode && (
               <span className="yolo-pill" onClick={() => setYoloMode(false)} title="Disable YOLO mode">
                 <span className="yolo-pill-icon">⚡</span>

@@ -181,6 +181,7 @@ export default function MainArea() {
           <span className="session-jump-btn__text">End</span>
         </button>
         <div className="messages" id="messages" ref={messagesRef}>
+        <div className="messages-inner">
         {messages.length === 0 && !busy && (
           <div className="chat-empty">
             <div className="empty-state">
@@ -229,6 +230,7 @@ export default function MainArea() {
           <ActivityGroup toolCalls={toolCalls} />
         )}
         {isStreaming && <StreamingIndicator />}
+        </div>
         <div ref={bottomRef} />
       </div>
       </div>

@@ -466,9 +466,7 @@
   min-height: 0;
   position: relative;
   z-index: 0;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-  overscroll-behavior-y: contain;
+  padding: 0 24px;
 }
 .scroll-to-bottom-btn {
   position: absolute;
@@ -557,6 +555,19 @@
   padding: 10px 0;
   display: flex;
   gap: 12px;
+  max-width: 780px;
+  margin: 0 auto;
+  width: 100%;
+}
+.msg-row[data-role="user"] {
+  align-self: flex-end;
+  max-width: 60%;
+}
+.msg-row[data-role="user"] .msg-body {
+  padding: 10px 14px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-bg-strong);
+  border-radius: 12px;
 }
 .msg-avatar {
   width: 30px;
@@ -4579,8 +4590,8 @@ textarea#msg::placeholder {
 .msg-date-sep::before, .msg-date-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 /* ── Widths: collapse messages-inner to match content column ── */
-.messages-inner { max-width: var(--msg-max); }
-@media (min-width: 1400px) { .messages-inner { max-width: calc(var(--msg-max) + 40px); } }
+.messages-inner { margin:0 auto; width:100%; max-width:780px; padding:20px 24px 32px; display:flex; flex-direction:column }
+@media (min-width: 1400px) { .messages-inner { max-width: calc(780px + 40px); } }
 @media (min-width: 1800px) { .messages-inner { max-width: calc(var(--msg-max) + 80px); } }
 
 @media (max-width: 700px) {
