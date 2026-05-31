@@ -16,14 +16,6 @@ export default defineConfig({
           });
         },
       },
-      '/health': 'http://127.0.0.1:8787',
-      '/login': 'http://127.0.0.1:8787',
-      '/manifest.json': 'http://127.0.0.1:8787',
-      '/sw.js': 'http://127.0.0.1:8787',
-      '/favicon.ico': 'http://127.0.0.1:8787',
-      '/session': 'http://127.0.0.1:8787',
-      '/extensions': 'http://127.0.0.1:8787',
-      '/static': 'http://127.0.0.1:8787',
     },
   },
 })

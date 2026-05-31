@@ -183,29 +183,33 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
             </button>
           </div>
         </div>
-        {/* Source filter tabs */}
-        <div className="session-source-tabs" style={{ display: 'flex', gap: 2, padding: '0 12px 4px', flexShrink: 0 }}>
-          {(['all', 'webui', 'cli', 'messaging'] as const).map(f => (
-            <button
-              key={f}
-              className={`session-source-tab${sourceFilter === f ? ' active' : ''}`}
-              onClick={() => setSourceFilter(f)}
-              style={{
-                flex: 1, padding: '3px 6px', fontSize: 11, border: '1px solid var(--border)',
-                borderRadius: 6, background: sourceFilter === f ? 'var(--accent-bg)' : 'transparent',
-                color: sourceFilter === f ? 'var(--accent-text)' : 'var(--muted)', cursor: 'pointer',
-                transition: 'background 0.15s, color 0.15s',
-              }}
-            >{f === 'all' ? 'All' : f === 'webui' ? 'WebUI' : f === 'cli' ? 'CLI' : 'Msg'}</button>
-          ))}
-        </div>
-        {/* Archive toggle */}
-        <div style={{ padding: '0 12px 6px', flexShrink: 0 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
-            Show archived
-          </label>
-        </div>
+        {/* Source filter tabs — only show when there are sessions */}
+        {sessions.length > 0 && (
+          <div className="session-source-tabs" style={{ display: 'flex', gap: 2, padding: '0 12px 4px', flexShrink: 0 }}>
+            {(['all', 'webui', 'cli', 'messaging'] as const).map(f => (
+              <button
+                key={f}
+                className={`session-source-tab${sourceFilter === f ? ' active' : ''}`}
+                onClick={() => setSourceFilter(f)}
+                style={{
+                  flex: 1, padding: '3px 6px', fontSize: 11, border: '1px solid var(--border)',
+                  borderRadius: 6, background: sourceFilter === f ? 'var(--accent-bg)' : 'transparent',
+                  color: sourceFilter === f ? 'var(--accent-text)' : 'var(--muted)', cursor: 'pointer',
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >{f === 'all' ? 'All' : f === 'webui' ? 'WebUI' : f === 'cli' ? 'CLI' : 'Msg'}</button>
+            ))}
+          </div>
+        )}
+        {/* Archive toggle — only show when there are sessions */}
+        {sessions.length > 0 && (
+          <div style={{ padding: '0 12px 6px', flexShrink: 0 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+              Show archived
+            </label>
+          </div>
+        )}
         <SessionList
           sessions={displaySessions}
           grouped={grouped}
