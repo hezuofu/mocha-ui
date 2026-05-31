@@ -39,7 +39,8 @@ export default function Rail({ activePanel, onSwitch }: RailProps) {
       <button
         className="rail-btn nav-tab dashboard-link"
         data-panel="dashboard"
-        onClick={() => window.open('/dashboard', '_blank')}
+        style={{ display: 'none' }}
+        onClick={() => window.open('/', '_self')}
         data-tooltip="Dashboard"
         aria-label="Dashboard"
         title="Dashboard"

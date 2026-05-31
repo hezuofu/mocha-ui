@@ -134,9 +134,9 @@ export const searchSkills = (query: string) =>
 export const getMemory = () => apiGet<{ content: string }>('/api/memory');
 export const saveMemory = (content: string) =>
   apiPost('/api/memory', { content });
-export const getUserMemory = () => apiGet<{ content: string }>('/api/user');
+export const getUserMemory = () => apiGet<{ content: string }>('/api/memory?kind=user');
 export const saveUserMemory = (content: string) =>
-  apiPost('/api/user', { content });
+  apiPost('/api/memory', { content, kind: 'user' });
 
 // ── Profiles ──
 export const getProfiles = () => apiGet<{ profiles: Profile[] }>('/api/profiles');

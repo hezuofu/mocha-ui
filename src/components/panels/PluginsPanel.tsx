@@ -12,7 +12,7 @@ export default function PluginsPanel() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiGet<{ plugins: PluginInfo[] }>('/api/extensions').then((data: unknown) => {
+    apiGet<{ plugins: PluginInfo[] }>('/api/plugins').then((data: unknown) => {
       setPlugins((data as Record<string, unknown>).plugins as PluginInfo[] || []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -32,10 +32,11 @@ export default function PluginsPanel() {
       <section className="settings-section">
         <h4>Installed Plugins</h4>
         {plugins.length === 0 ? (
-          <p style={{ color: 'var(--muted)', fontSize: 12 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: -2, marginRight: 4 }}><path d="M12 2l3 7h7l-5.5 4.3 2.1 7L12 16.2 5.4 20.3l2.1-7L2 9h7z"/></svg>
-            No plugins installed. Plugins extend Hermes with additional tools, skills, and integrations.
-          </p>
+          <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--muted)', border: '1px dashed var(--border)', borderRadius: 12, background: 'var(--surface-subtle)' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginBottom: 12, opacity: 0.5 }}><path d="M12 2l3 7h7l-5.5 4.3 2.1 7L12 16.2 5.4 20.3l2.1-7L2 9h7z"/></svg>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>No plugins installed</p>
+            <p style={{ fontSize: 12, lineHeight: 1.5 }}>Plugins extend Hermes with additional tools, skills, and integrations.</p>
+          </div>
         ) : (
           plugins.map(p => (
             <div key={p.name} style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>

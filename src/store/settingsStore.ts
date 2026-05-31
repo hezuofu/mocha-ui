@@ -39,8 +39,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   async loadModels() {
     try {
-      const models = await api.getModels();
-      set({ availableModels: models });
+      const raw = await api.getModels();
+      const data = raw as unknown as Record<string, unknown>;
+      const groups = (data.groups as ModelGroup[]) || (Array.isArray(raw) ? raw as ModelGroup[] : []);
+      set({ availableModels: groups });
     } catch {
       // keep previous models
     }

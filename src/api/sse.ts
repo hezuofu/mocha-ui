@@ -73,7 +73,7 @@ let approvalEs: EventSource | null = null;
 
 export function connectApprovalSSE(sessionId: string, onPending: (count: number, approvalId?: string) => void) {
   if (approvalEs) approvalEs.close();
-  approvalEs = new EventSource(`/api/approval/sse?session_id=${encodeURIComponent(sessionId)}`);
+  approvalEs = new EventSource(`/api/approval/stream?session_id=${encodeURIComponent(sessionId)}`);
 
   approvalEs.addEventListener('initial', (e: MessageEvent) => {
     try {

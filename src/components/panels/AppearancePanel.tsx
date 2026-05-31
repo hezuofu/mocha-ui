@@ -56,19 +56,29 @@ export default function AppearancePanel() {
     <div className="appearance-panel">
       <section className="settings-section">
         <h4>Theme</h4>
-        <div className="theme-options">
-          {(['system', 'dark', 'light'] as const).map(t => (
-            <button
-              key={t}
-              className={`theme-option ${theme === (t === 'system'
-                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-                : t) ? 'active' : ''}`}
-              onClick={() => setTheme(t)}
-            >
-              <span className={`theme-swatch ${t}`} />
-              <span>{t.charAt(0).toUpperCase() + t.slice(1)}</span>
-            </button>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          {(['system', 'dark', 'light'] as const).map(t => {
+            const active = theme === (t === 'system'
+              ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+              : t);
+            return (
+              <button key={t} onClick={() => setTheme(t)}
+                style={{
+                  padding: '12px 8px', borderRadius: 10, border: active ? '2px solid var(--accent)' : '2px solid var(--border)',
+                  background: active ? 'var(--accent-bg)' : 'var(--surface-subtle)',
+                  cursor: 'pointer', textAlign: 'center', transition: 'all .15s',
+                }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%', margin: '0 auto 6px',
+                  background: t === 'system' ? 'linear-gradient(135deg, #0D0D1A 50%, #FEFCF7 50%)' : t === 'dark' ? '#0D0D1A' : '#FEFCF7',
+                  border: '2px solid var(--border)',
+                }} />
+                <div style={{ fontSize: 12, fontWeight: 600, color: active ? 'var(--accent-text)' : 'var(--text)' }}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -90,12 +100,18 @@ export default function AppearancePanel() {
 
       <section className="settings-section">
         <h4>Font Size</h4>
-        <div className="settings-field">
-          <select value={fontSize} onChange={e => setFontSize(e.target.value)}>
-            {FONT_SIZES.map(fs => (
-              <option key={fs} value={fs}>{fs}</option>
-            ))}
-          </select>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          {FONT_SIZES.map(fs => (
+            <button key={fs} onClick={() => setFontSize(fs)}
+              style={{
+                padding: '10px 6px', borderRadius: 8, border: fontSize === fs ? '2px solid var(--accent)' : '2px solid var(--border)',
+                background: fontSize === fs ? 'var(--accent-bg)' : 'var(--surface-subtle)',
+                cursor: 'pointer', textAlign: 'center', transition: 'all .15s',
+              }}>
+              <div style={{ fontSize: fs === 'small' ? 11 : fs === 'large' ? 18 : fs === 'xlarge' ? 22 : 14, fontWeight: 700, color: fontSize === fs ? 'var(--accent-text)' : 'var(--text)', marginBottom: 2 }}>Aa</div>
+              <div style={{ fontSize: 10, color: fontSize === fs ? 'var(--accent-text)' : 'var(--muted)', fontWeight: 500 }}>{fs}</div>
+            </button>
+          ))}
         </div>
       </section>
 
