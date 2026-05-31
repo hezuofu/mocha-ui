@@ -90,26 +90,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   async createSession(workspace?: string) {
     const data = await api.createSession(workspace);
     const sid = data.session.session_id;
-    // Add optimistic session to list immediately
-    const optimisticSession: Session = {
-      ...data.session,
-      session_id: sid,
-      title: data.session.title || 'Untitled',
-      created_at: data.session.created_at || Date.now() / 1000,
-      updated_at: data.session.updated_at || Date.now() / 1000,
-      message_count: 0,
-      workspace: data.session.workspace || '',
-    };
-    set(state => ({
+    set({
       activeSessionId: sid,
       messages: [],
       toolCalls: [],
       busy: false,
       activeStreamId: null,
-      sessions: [optimisticSession, ...state.sessions.filter(s => s.session_id !== sid)],
-    }));
-    // Refresh from server
-    get().loadSessions();
+    });
+    await get().loadSessions();
     return sid;
   },
 

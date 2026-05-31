@@ -7,6 +7,7 @@ import { usePanelStore, type PanelId } from '../../store/panelStore';
 import { startChat, sendMessage, cancelStream, getProfiles, switchProfile } from '../../api/endpoints';
 import { connectSSE, closeSSE } from '../../api/sse';
 import { useTheme } from '../../hooks/useTheme';
+import { useI18n } from '../../i18n';
 import type { Profile } from '../../types';
 import ComposerTerminal from './ComposerTerminal';
 /* All icons replaced with original inline SVGs from static/index.html */
@@ -42,6 +43,7 @@ export default function Composer() {
   const renameSession = useSessionStore(s => s.renameSession);
   const switchPanel = usePanelStore(s => s.switchTo);
   const { setTheme, setSkin, setFontSize } = useTheme();
+  const { t } = useI18n();
 
   const [showReasoning, setShowReasoning] = useState(false);
   const [showToolsets, setShowToolsets] = useState(false);
@@ -342,7 +344,7 @@ export default function Composer() {
           onChange={e => handleInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder="Message Hermes…"
+          placeholder={t("message_placeholder")}
           rows={1}
           disabled={busy}
         />

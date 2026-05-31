@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useSessionStore } from '../../store/sessionStore';
 import type { PanelId } from '../../store/panelStore';
+import { useI18n } from '../../i18n';
 import PanelHead from './PanelHead';
 import SessionList from '../sessions/SessionList';
 import CronPanel from '../panels/CronPanel';
@@ -67,6 +68,7 @@ function ClearIcon() {
 }
 
 export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarProps) {
+  const { t } = useI18n();
   const sessions = useSessionStore(s => s.sessions);
   const getFilteredSessions = useSessionStore(s => s.getFilteredSessions);
   const sourceFilter = useSessionStore(s => s.sourceFilter);
@@ -220,7 +222,7 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
 
       {/* Tasks (Cron) panel */}
       <div className={`panel-view ${activePanel === 'tasks' ? 'active' : ''}`}>
-        <PanelHead title="Scheduled jobs" actions={
+        <PanelHead title={t("scheduled_jobs")} actions={
           <button className="panel-head-btn" title="New job" aria-label="New job">
             <PlusIcon />
           </button>
@@ -230,7 +232,7 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
 
       {/* Kanban panel */}
       <div className={`panel-view ${activePanel === 'kanban' ? 'active' : ''}`}>
-        <PanelHead title="Kanban" actions={
+        <PanelHead title={t("tab_kanban")} actions={
           <button className="panel-head-btn" title="Refresh" aria-label="Refresh">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           </button>
@@ -240,7 +242,7 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
 
       {/* Skills panel */}
       <div className={`panel-view ${activePanel === 'skills' ? 'active' : ''}`}>
-        <PanelHead title="Skills" actions={
+        <PanelHead title={t("tab_skills")} actions={
           <button className="panel-head-btn" title="New skill" aria-label="New skill">
             <PlusIcon />
           </button>
@@ -250,13 +252,13 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
 
       {/* Memory panel */}
       <div className={`panel-view ${activePanel === 'memory' ? 'active' : ''}`}>
-        <PanelHead title="Memory" />
+        <PanelHead title={t("tab_memory")} />
         <MemoryPanel />
       </div>
 
       {/* Workspaces panel */}
       <div className={`panel-view ${activePanel === 'workspaces' ? 'active' : ''}`}>
-        <PanelHead title="Spaces" actions={
+        <PanelHead title={t("tab_workspaces")} actions={
           <button className="panel-head-btn" title="Add space" aria-label="Add space">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
@@ -266,7 +268,7 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
 
       {/* Profiles panel */}
       <div className={`panel-view ${activePanel === 'profiles' ? 'active' : ''}`}>
-        <PanelHead title="Agent profiles" actions={
+        <PanelHead title={t("tab_profiles")} actions={
           <button className="panel-head-btn" title="New profile" aria-label="New profile">
             <PlusIcon />
           </button>
@@ -276,25 +278,25 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
 
       {/* Todos panel */}
       <div className={`panel-view ${activePanel === 'todos' ? 'active' : ''}`}>
-        <PanelHead title="Current task list" />
+        <PanelHead title={t("tab_todos")} />
         <TodosPanel />
       </div>
 
       {/* Insights panel */}
       <div className={`panel-view ${activePanel === 'insights' ? 'active' : ''}`}>
-        <PanelHead title="Insights" />
+        <PanelHead title={t("tab_insights")} />
         <InsightsPanel />
       </div>
 
       {/* Logs panel */}
       <div className={`panel-view ${activePanel === 'logs' ? 'active' : ''}`}>
-        <PanelHead title="Logs" />
+        <PanelHead title={t("tab_logs")} />
         <LogsPanel />
       </div>
 
       {/* Settings panel */}
       <div className={`panel-view ${activePanel === 'settings' ? 'active' : ''}`}>
-        <PanelHead title="Settings" />
+        <PanelHead title={t("tab_settings")} />
         <SettingsPanelWrapper />
       </div>
       <div className="resize-handle" id="sidebarResize" />

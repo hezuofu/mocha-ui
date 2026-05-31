@@ -37,12 +37,11 @@ export function useTheme() {
   const settingsFontSize = useSettingsStore(s => s.font_size);
   const saveSettings = useSettingsStore(s => s.saveSettings);
 
+  // Always call useSyncExternalStore (rules of hooks)
+  const systemTheme = useSyncExternalStore(subscribe, () => getSnapshot().theme);
   const resolvedTheme: Theme =
-    settingsTheme === 'system'
-      ? useSyncExternalStore(subscribe, () => getSnapshot().theme)
-      : settingsTheme === 'light'
-        ? 'light'
-        : 'dark';
+    settingsTheme === 'system' ? systemTheme :
+    settingsTheme === 'light' ? 'light' : 'dark';
 
   const resolvedSkin = settingsSkin || storedSkin || 'default';
   const resolvedFontSize = settingsFontSize || fontSize || 'default';

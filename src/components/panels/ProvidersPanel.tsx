@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getModels } from '../../api/endpoints';
-import { apiPost } from '../../api/client';
+import { apiGet, apiPost } from '../../api/client';
 import type { ModelGroup } from '../../types';
 
 export default function ProvidersPanel() {

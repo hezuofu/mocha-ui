@@ -14,6 +14,7 @@ import LoginPage from './components/auth/LoginPage';
 import MainArea from './components/chat/MainArea';
 import { ToastProvider } from './components/shared/Toast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { I18nProvider } from './i18n';
 import OnboardingWizard from './components/onboarding/OnboardingWizard';
 
 const PANEL_TITLEBAR_KEYS: Record<string, string> = {
@@ -97,6 +98,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/*" element={
+        <I18nProvider>
         <ToastProvider>
         <OnboardingWizard />
         <div className={`app-root ${theme}`}>
@@ -119,6 +121,7 @@ export default function App() {
           </div>
         </div>
         </ToastProvider>
+        </I18nProvider>
       } />
     </Routes>
   );

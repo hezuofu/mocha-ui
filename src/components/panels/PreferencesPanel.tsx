@@ -1,4 +1,5 @@
 import { useSettingsStore } from '../../store/settingsStore';
+import { useI18n } from '../../i18n';
 import type { Settings } from '../../types';
 
 function Toggle({ label, desc, checked, onChange }: { label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void }) {
@@ -39,9 +40,23 @@ function NumberInput({ label, value, min, max, onChange }: { label: string; valu
 export default function PreferencesPanel() {
   const s = useSettingsStore();
   const save = useSettingsStore(st => st.saveSettings);
+  const { locale, setLocale } = useI18n();
 
   return (
     <div className="settings-content" style={{ overflow: 'auto', flex: 1 }}>
+      <section className="settings-section">
+        <h4>Language</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+          {['en', 'zh'].map(lang => (
+            <button key={lang} onClick={() => setLocale(lang)}
+              style={{
+                padding: '10px 12px', borderRadius: 8, border: locale === lang ? '2px solid var(--accent)' : '2px solid var(--border)',
+                background: locale === lang ? 'var(--accent-bg)' : 'var(--surface-subtle)', cursor: 'pointer',
+                fontSize: 13, fontWeight: 600, color: locale === lang ? 'var(--accent-text)' : 'var(--text)',
+              }}>{lang === 'en' ? 'English' : '中文'}</button>
+          ))}
+        </div>
+      </section>
       <section className="settings-section">
         <h4>Chat Behavior</h4>
         <Select label="Send Key" value={s.send_key || 'enter'}
