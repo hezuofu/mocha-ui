@@ -10,8 +10,10 @@ import ToolCallCard from './ToolCallCard';
 import ThinkingBlock from './ThinkingBlock';
 import StreamingIndicator from './StreamingIndicator';
 import { KaTeXRenderer, MermaidRenderer } from './SpecialRenderers';
+import { useI18n } from '../../i18n';
 
 export default function MainArea() {
+  const { t } = useI18n();
   const activeSid = useSessionStore(s => s.activeSessionId);
   const messages = useSessionStore(s => s.messages);
   const busy = useSessionStore(s => s.busy);
@@ -139,7 +141,7 @@ export default function MainArea() {
             <strong>Connection lost</strong>
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>Your browser is offline. Messages will be queued.</span>
           </div>
-          <button onClick={() => window.location.reload()} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Retry</button>
+          <button onClick={() => window.location.reload()} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>{t('retry')}</button>
         </div>
       )}
       {reconnect && (
@@ -201,8 +203,8 @@ export default function MainArea() {
                   <circle cx="32" cy="10" r="2" fill="#FFF8E1" opacity="0.7"/>
                 </svg>
               </div>
-              <h2>What can I help with?</h2>
-              <p>Ask anything, run commands, explore files, or manage your scheduled tasks.</p>
+              <h2>{t('empty_title')}</h2>
+              <p>{t('empty_subtitle')}</p>
               <div className="suggestion-grid">
                 <button className="suggestion" onClick={() => setSuggestedInput("What files are in this workspace?")}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -618,23 +620,23 @@ function ApprovalBar({ count }: { count: number }) {
         <div className="approval-btns">
           <button className="approval-btn once" onClick={() => handleRespond('once')} disabled={responding} title="Allow this one command (Enter)">
             <span className="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>
-            <span className="approval-btn-label">Allow once</span>
+            <span className="approval-btn-label">{t('approve_once')}</span>
           </button>
           <button className="approval-btn session" onClick={() => handleRespond('session')} disabled={responding} title="Allow for this session">
             <span className="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-            <span className="approval-btn-label">Allow session</span>
+            <span className="approval-btn-label">{t('approve_session')}</span>
           </button>
-          <button className="approval-btn always" onClick={() => handleRespond('always')} disabled={responding} title="Always allow this command pattern">
+          <button className="approval-btn always" onClick={() => handleRespond('always')} disabled={responding} title="{t('approve_always')} this command pattern">
             <span className="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
-            <span className="approval-btn-label">Always allow</span>
+            <span className="approval-btn-label">{t('approve_always')}</span>
           </button>
           <button className="approval-btn deny" onClick={() => handleRespond('deny')} disabled={responding} title="Deny — do not run this command">
             <span className="approval-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
-            <span className="approval-btn-label">Deny</span>
+            <span className="approval-btn-label">{t('approve_deny')}</span>
           </button>
-          <button className="approval-btn yolo" onClick={() => handleRespond('always')} disabled={responding} title="Skip all approvals this session">
+          <button className="approval-btn yolo" onClick={() => handleRespond('always')} disabled={responding} title="{t('approve_skip')} approvals this session">
             <span className="approval-btn-icon" aria-hidden="true">⚡</span>
-            <span className="approval-btn-label">Skip all</span>
+            <span className="approval-btn-label">{t('approve_skip')}</span>
           </button>
         </div>
       </div>

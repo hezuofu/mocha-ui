@@ -185,9 +185,8 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
             </button>
           </div>
         </div>
-        {/* Source filter tabs — only show when there are sessions */}
-        {sessions.length > 0 && (
-          <div className="session-source-tabs" style={{ display: 'flex', gap: 2, padding: '0 12px 4px', flexShrink: 0 }}>
+        {/* Source filter tabs */}
+        <div className="session-source-tabs" style={{ display: 'flex', gap: 2, padding: '0 12px 4px', flexShrink: 0 }}>
             {(['all', 'webui', 'cli', 'messaging'] as const).map(f => (
               <button
                 key={f}
@@ -199,19 +198,16 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
                   color: sourceFilter === f ? 'var(--accent-text)' : 'var(--muted)', cursor: 'pointer',
                   transition: 'background 0.15s, color 0.15s',
                 }}
-              >{f === 'all' ? 'All' : f === 'webui' ? 'WebUI' : f === 'cli' ? 'CLI' : 'Msg'}</button>
+              >{f === 'all' ? t('all') : f === 'webui' ? t('webui') : f === 'cli' ? t('cli') : t('msg')}</button>
             ))}
           </div>
-        )}
-        {/* Archive toggle — only show when there are sessions */}
-        {sessions.length > 0 && (
-          <div style={{ padding: '0 12px 6px', flexShrink: 0 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)', cursor: 'pointer' }}>
-              <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
-              Show archived
-            </label>
-          </div>
-        )}
+        {/* Archive toggle */}
+        <div style={{ padding: '0 12px 6px', flexShrink: 0 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+            {t('show_archived')}
+          </label>
+        </div>
         <SessionList
           sessions={displaySessions}
           grouped={grouped}
@@ -307,33 +303,34 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
 /** Settings with side-menu layout matching original 6 sections */
 function SettingsPanelWrapper() {
   const [section, setSection] = useState<'conversation' | 'appearance' | 'preferences' | 'providers' | 'plugins' | 'system'>('conversation');
+  const { t } = useI18n();
 
   return (
     <div className="settings-layout">
       <div className="side-menu">
         <button className={`side-menu-item ${section === 'conversation' ? 'active' : ''}`} onClick={() => setSection('conversation')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span>Conversation</span>
+          <span>{t('settings_conversation')}</span>
         </button>
         <button className={`side-menu-item ${section === 'appearance' ? 'active' : ''}`} onClick={() => setSection('appearance')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-          <span>Appearance</span>
+          <span>{t('settings_appearance')}</span>
         </button>
         <button className={`side-menu-item ${section === 'preferences' ? 'active' : ''}`} onClick={() => setSection('preferences')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-          <span>Preferences</span>
+          <span>{t('settings_preferences')}</span>
         </button>
         <button className={`side-menu-item ${section === 'providers' ? 'active' : ''}`} onClick={() => setSection('providers')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-          <span>Providers</span>
+          <span>{t('settings_providers')}</span>
         </button>
         <button className={`side-menu-item ${section === 'plugins' ? 'active' : ''}`} onClick={() => setSection('plugins')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4.3 2.1 7L12 16.2 5.4 20.3l2.1-7L2 9h7z"/></svg>
-          <span>Plugins</span>
+          <span>{t('settings_plugins')}</span>
         </button>
         <button className={`side-menu-item ${section === 'system' ? 'active' : ''}`} onClick={() => setSection('system')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><line x1="6" y1="7" x2="6.01" y2="7"/><line x1="6" y1="17" x2="6.01" y2="17"/></svg>
-          <span>System</span>
+          <span>{t('settings_system')}</span>
         </button>
       </div>
       <div className="settings-content">

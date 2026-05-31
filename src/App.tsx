@@ -12,6 +12,7 @@ import Sidebar from './components/layout/Sidebar';
 import WorkspacePanel from './components/layout/WorkspacePanel';
 import LoginPage from './components/auth/LoginPage';
 import MainArea from './components/chat/MainArea';
+import Topbar from './components/layout/Topbar';
 import { ToastProvider } from './components/shared/Toast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { I18nProvider } from './i18n';
@@ -109,6 +110,7 @@ export default function App() {
               : (PANEL_TITLEBAR_KEYS[activePanel] || 'Hermes')}
             subtitle={titlebarSubtitle}
           />
+          <Topbar />
           <div className={`layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
             <Rail activePanel={activePanel} onSwitch={handlePanelSwitch} />
             <Sidebar
