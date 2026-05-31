@@ -16,6 +16,10 @@ interface SessionState {
   serverTz: string | undefined;
   queueDrainSid: string | null;
   suggestedInput: string | null;
+  sourceFilter: 'all' | 'webui' | 'cli' | 'messaging';
+  showArchived: boolean;
+  selectedSessionIds: Set<string>;
+  batchMode: boolean;
 
   // Actions
   loadSessions: () => Promise<void>;
@@ -39,6 +43,12 @@ interface SessionState {
   serverNow: () => number;
   setSuggestedInput: (text: string | null) => void;
   consumeSuggestion: () => string | null;
+  setSourceFilter: (filter: 'all' | 'webui' | 'cli' | 'messaging') => void;
+  setShowArchived: (show: boolean) => void;
+  toggleBatchMode: () => void;
+  toggleSessionSelected: (id: string) => void;
+  clearSelection: () => void;
+  getFilteredSessions: () => Session[];
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
@@ -54,6 +64,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   serverTz: undefined,
   queueDrainSid: null,
   suggestedInput: null,
+  sourceFilter: 'all',
+  showArchived: false,
+  selectedSessionIds: new Set(),
+  batchMode: false,
 
   async loadSessions() {
     const data = await api.getSessions();
@@ -202,5 +216,41 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const text = get().suggestedInput;
     if (text) set({ suggestedInput: null });
     return text;
+  },
+
+  setSourceFilter(filter) { set({ sourceFilter: filter }); },
+  setShowArchived(show) { set({ showArchived: show }); },
+
+  toggleBatchMode() {
+    set(s => ({ batchMode: !s.batchMode, selectedSessionIds: new Set() }));
+  },
+
+  toggleSessionSelected(id: string) {
+    set(s => {
+      const next = new Set(s.selectedSessionIds);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return { selectedSessionIds: next };
+    });
+  },
+
+  clearSelection() {
+    set({ selectedSessionIds: new Set() });
+  },
+
+  getFilteredSessions() {
+    const { sessions, sourceFilter, showArchived } = get();
+    let filtered = sessions;
+    if (sourceFilter !== 'all') {
+      filtered = filtered.filter(s => {
+        if (sourceFilter === 'webui') return !s.source || s.source === 'webui';
+        if (sourceFilter === 'cli') return s.source === 'cli';
+        if (sourceFilter === 'messaging') return s.source === 'messaging';
+        return true;
+      });
+    }
+    if (!showArchived) {
+      filtered = filtered.filter(s => !s.archived);
+    }
+    return filtered;
   },
 }));

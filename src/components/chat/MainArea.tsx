@@ -9,6 +9,7 @@ import Composer from './Composer';
 import ToolCallCard from './ToolCallCard';
 import ThinkingBlock from './ThinkingBlock';
 import StreamingIndicator from './StreamingIndicator';
+import { KaTeXRenderer, MermaidRenderer } from './SpecialRenderers';
 
 export default function MainArea() {
   const activeSid = useSessionStore(s => s.activeSessionId);
@@ -19,6 +20,12 @@ export default function MainArea() {
   const isStreaming = useStreamingStore(s => s.isStreaming);
   const approvalCount = useStreamingStore(s => s.approvalCount);
   const setApprovalSse = useStreamingStore(s => s.setApproval);
+  const clarifyPending = useStreamingStore(s => s.clarifyPending);
+  const clarifyQuestionState = useStreamingStore(s => s.clarifyQuestion);
+  const clarifyChoicesState = useStreamingStore(s => s.clarifyChoices);
+  const hideClarify = useStreamingStore(s => s.hideClarify);
+  const compressionRunning = useStreamingStore(s => s.compressionRunning);
+  const compressionMessage = useStreamingStore(s => s.compressionMessage);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Connect approval SSE
@@ -78,8 +85,61 @@ export default function MainArea() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  const [offline, setOffline] = useState(false);
+  const [reconnect, setReconnect] = useState(false);
+  const [agentDown, setAgentDown] = useState(false);
+  const [clarifyInput, setClarifyInput] = useState('');
+  const [uploadProgress] = useState(0);
+  const [uploading] = useState(false);
+
+  useEffect(() => {
+    const goOff = () => setOffline(true);
+    const goOn = () => { setOffline(false); setReconnect(true); setTimeout(() => setReconnect(false), 8000); };
+    window.addEventListener('offline', goOff);
+    window.addEventListener('online', goOn);
+    return () => { window.removeEventListener('offline', goOff); window.removeEventListener('online', goOn); };
+  }, []);
+
+  // Periodic agent health check
+  useEffect(() => {
+    const check = () => {
+      import('../../api/endpoints').then(({ getAgentHealth }) => {
+        getAgentHealth().then((h: unknown) => {
+          setAgentDown((h as Record<string, unknown>)?.status === 'error');
+        }).catch(() => {});
+      }).catch(() => {});
+    };
+    check();
+    const id = setInterval(check, 60000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <main className="main">
+      {offline && (
+        <div className="offline-banner visible" role="status">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <strong>Connection lost</strong>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>Your browser is offline. Messages will be queued.</span>
+          </div>
+          <button onClick={() => window.location.reload()} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Retry</button>
+        </div>
+      )}
+      {reconnect && (
+        <div className="reconnect-banner visible">
+          <span>Connection restored. Reload messages?</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="reconnect-btn" onClick={() => setReconnect(false)}>Dismiss</button>
+            <button className="reconnect-btn" onClick={() => window.location.reload()}>Reload</button>
+          </div>
+        </div>
+      )}
+      {agentDown && (
+        <div className="agent-health-banner visible" role="alert">
+          <div><strong>Hermes agent is not responding</strong></div>
+          <button onClick={() => setAgentDown(false)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid color-mix(in srgb, var(--error) 45%, var(--surface))', background: 'color-mix(in srgb, var(--error) 10%, var(--surface))', color: 'var(--error)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Dismiss</button>
+        </div>
+      )}
       <div className="messages-shell">
         <button
           className="session-jump-btn session-jump-btn--start"
@@ -154,6 +214,23 @@ export default function MainArea() {
       </div>
       </div>
       {approvalCount > 0 && <ApprovalBar count={approvalCount} />}
+      {clarifyPending && (
+        <ClarifyCard question={clarifyQuestionState} choices={clarifyChoicesState} input={clarifyInput}
+          onInputChange={setClarifyInput}
+          onChoice={(choice: string) => { hideClarify(); setClarifyInput('');
+            if (activeSid) import('../../api/endpoints').then(({ approveCommand: ac }) => ac(activeSid, choice, 'clarify')).catch(() => {}); }}
+          onSubmit={() => { hideClarify();
+            if (clarifyInput.trim() && activeSid) import('../../api/endpoints').then(({ approveCommand: ac }) => ac(activeSid, clarifyInput.trim(), 'clarify_response')).catch(() => {});
+            setClarifyInput(''); }}
+          onDismiss={() => { hideClarify(); }} />
+      )}
+      {compressionRunning && (
+        <div className="streaming-indicator" style={{ justifyContent: 'center', padding: '8px 0', color: 'var(--accent-text)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+          <span>{compressionMessage || 'Compressing context...'}</span>
+        </div>
+      )}
+      {uploading && <UploadBar progress={uploadProgress} />}
       <UpdateBanner />
       <Composer />
     </main>
@@ -162,7 +239,6 @@ export default function MainArea() {
 
 function MessageItem({ message, index, isLast }: { message: Message; index: number; isLast: boolean }) {
   const [copied, setCopied] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const isTool = message.role === 'tool';
@@ -179,7 +255,6 @@ function MessageItem({ message, index, isLast }: { message: Message; index: numb
 
   const handleRetry = useCallback(async () => {
     if (!activeSid || busy) return;
-    setMenuOpen(false);
     try { await retryMessage(activeSid, index); } catch { /* ignore */ }
   }, [activeSid, index, busy]);
 
@@ -187,91 +262,190 @@ function MessageItem({ message, index, isLast }: { message: Message; index: numb
     if (!activeSid || busy || !message.content) return;
     const newContent = prompt('Edit message:', message.content);
     if (newContent && newContent !== message.content) {
-      setMenuOpen(false);
       try { await editAndRegenerate(activeSid, index, newContent); } catch { /* ignore */ }
     }
   }, [activeSid, index, busy, message.content]);
 
   if (isTool) return null;
 
+  const role = isUser ? 'user' : isSystem ? 'system' : 'assistant';
+  const roleLabel = isUser ? 'You' : isSystem ? 'System' : 'Hermes';
+
   return (
-    <div className={`msg-row ${isUser ? 'user' : isSystem ? 'system' : 'assistant'}`}>
-      <div className="msg-avatar">
-        {isUser ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg> : isSystem ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>}
+    <div className="msg-row" data-role={role}>
+      <div className="role-icon">
+        {isUser
+          ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
+          : isSystem
+            ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+        }
       </div>
       <div className="msg-body">
-        <div className="msg-meta">
-          <span className="msg-role">{isUser ? 'You' : isSystem ? 'System' : 'Hermes'}</span>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          {message.content && (
-            <button className="msg-copy-btn" onClick={handleCopy}>
-              {copied ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
-            </button>
-          )}
-          {isLast && !isSystem && !busy && (
-            <div style={{ position: 'relative' }}>
-              <button className="msg-copy-btn" onClick={() => setMenuOpen(!menuOpen)} style={{ opacity: 1 }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-              </button>
-              {menuOpen && (
-                <div className="dropdown-menu">
-                  <button onClick={handleCopy}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button>
-                  <button onClick={handleRetry}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg> Retry</button>
-                  {isUser && <button onClick={handleEdit}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg> Edit</button>}
-                </div>
-              )}
-            </div>
-          )}
-          </div>
+        <div className="msg-role">
+          {roleLabel}
+          {message.timestamp && <span className="msg-time">{new Date(message.timestamp).toLocaleTimeString()}</span>}
         </div>
         {(message.reasoning || message.thinking) && (
           <ThinkingBlock content={message.reasoning || message.thinking || ''} defaultOpen={false} />
         )}
-        <div className="msg-content">
-          <MarkdownContent content={message.content || ''} />
-        </div>
+        <MarkdownContent content={message.content || ''} />
         {message.tool_calls?.map(tc => (
           <ToolCallCard key={tc.id} toolCall={tc} />
         ))}
+        {/* Message footer with actions */}
+        <div className="msg-foot">
+          <div className="msg-actions">
+            <button className="msg-action-btn" onClick={handleCopy} title="Copy">
+              {copied
+                ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              }
+            </button>
+            {isLast && !isSystem && !busy && (
+              <>
+                <button className="msg-action-btn" onClick={handleRetry} title="Retry">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+                </button>
+                {isUser && (
+                  <button className="msg-action-btn" onClick={handleEdit} title="Edit">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-/** Simple markdown renderer: paragraphs, code blocks, inline code, bold, italic */
+/** Full markdown renderer with headings, lists, code blocks, tables, blockquotes */
 function MarkdownContent({ content }: { content: string }) {
   if (!content) return null;
-  const blocks = content.split('\n');
-
+  const lines = content.split('\n');
   const elements: React.ReactNode[] = [];
   let i = 0;
-  while (i < blocks.length) {
-    const line = blocks[i];
+  let key = 0;
 
-    // Fenced code block
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Fenced code block: ```lang ... ```
     if (/^```/.test(line)) {
-      const lang = line.slice(3).trim();
-      let code = '';
+      const lang = line.slice(3).trim().toLowerCase();
+      const codeLines: string[] = [];
       i++;
-      while (i < blocks.length && !/^```/.test(blocks[i])) {
-        code += (code ? '\n' : '') + blocks[i];
+      while (i < lines.length && !/^```/.test(lines[i])) {
+        codeLines.push(lines[i]);
         i++;
       }
       i++; // skip closing ```
-      elements.push(<CodeBlock key={elements.length} code={code} language={lang} />);
+      const code = codeLines.join('\n');
+      if (lang === 'mermaid') {
+        elements.push(<MermaidRenderer key={key++} code={code} />);
+      } else if (lang === 'katex' || lang === 'math') {
+        elements.push(<div key={key++} className="code-block-wrap"><KaTeXRenderer content={`$$${code}$$`} /></div>);
+      } else {
+        elements.push(<CodeBlock key={key++} code={code} language={lang} />);
+      }
       continue;
     }
 
-    // Inline markdown rendering
-    elements.push(
-      <p key={elements.length}>
-        <InlineMarkdown text={line} />
-      </p>,
-    );
+    // Heading: ### Title
+    const hMatch = line.match(/^(#{1,6})\s+(.+)/);
+    if (hMatch) {
+      const level = hMatch[1].length;
+      const text = <InlineMarkdown text={hMatch[2]} />;
+      if (level === 1) elements.push(<h1 key={key++}>{text}</h1>);
+      else if (level === 2) elements.push(<h2 key={key++}>{text}</h2>);
+      else if (level === 3) elements.push(<h3 key={key++}>{text}</h3>);
+      else if (level === 4) elements.push(<h4 key={key++}>{text}</h4>);
+      else if (level === 5) elements.push(<h5 key={key++}>{text}</h5>);
+      else elements.push(<h6 key={key++}>{text}</h6>);
+      i++;
+      continue;
+    }
+
+    // Blockquote: > text
+    if (/^>\s?/.test(line)) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) {
+        quoteLines.push(lines[i].replace(/^>\s?/, ''));
+        i++;
+      }
+      elements.push(
+        <blockquote key={key++}>
+          {quoteLines.map((ql, j) => <p key={j}><InlineMarkdown text={ql || ' '} /></p>)}
+        </blockquote>
+      );
+      continue;
+    }
+
+    // Unordered list: - or * item
+    if (/^[-*]\s/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[-*]\s/.test(lines[i])) {
+        items.push(lines[i].replace(/^[-*]\s/, ''));
+        i++;
+      }
+      elements.push(<ul key={key++}>{items.map((item, j) => <li key={j}><InlineMarkdown text={item} /></li>)}</ul>);
+      continue;
+    }
+
+    // Ordered list: 1. item
+    if (/^\d+\.\s/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        items.push(lines[i].replace(/^\d+\.\s/, ''));
+        i++;
+      }
+      elements.push(<ol key={key++}>{items.map((item, j) => <li key={j}><InlineMarkdown text={item} /></li>)}</ol>);
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^---+\s*$/.test(line) || /^\*\*\*+\s*$/.test(line)) {
+      elements.push(<hr key={key++} />);
+      i++;
+      continue;
+    }
+
+    // Table: | col1 | col2 |
+    if (/^\|.+\|/.test(line)) {
+      const tableRows: string[][] = [];
+      while (i < lines.length && /^\|.+\|/.test(lines[i])) {
+        tableRows.push(lines[i].split('|').map(c => c.trim()).filter(c => c !== ''));
+        i++;
+        // Skip separator row (|---|)
+        if (i < lines.length && /^\|[\s\-:|]+\|/.test(lines[i])) i++;
+      }
+      if (tableRows.length > 0) {
+        const header = tableRows[0];
+        const body = tableRows.slice(1);
+        elements.push(
+          <table key={key++}>
+            <thead><tr>{header.map((h, j) => <th key={j}><InlineMarkdown text={h} /></th>)}</tr></thead>
+            <tbody>{body.map((row, ri) => <tr key={ri}>{row.map((c, ci) => <td key={ci}><InlineMarkdown text={c} /></td>)}</tr>)}</tbody>
+          </table>
+        );
+      }
+      continue;
+    }
+
+    // Empty line
+    if (line.trim() === '') {
+      i++;
+      continue;
+    }
+
+    // Regular paragraph
+    elements.push(<p key={key++}><InlineMarkdown text={line} /></p>);
     i++;
   }
 
-  return <div className="markdown-body">{elements}</div>;
+  return <>{elements}</>;
 }
 
 function CodeBlock({ code, language }: { code: string; language: string }) {
@@ -403,6 +577,58 @@ function ApprovalBar({ count }: { count: number }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Clarify card — when agent needs user input */
+function ClarifyCard({ question, choices, input, onInputChange, onChoice, onSubmit, onDismiss }: {
+  question: string; choices: string[]; input: string;
+  onInputChange: (v: string) => void; onChoice: (c: string) => void; onSubmit: () => void; onDismiss: () => void;
+}) {
+  return (
+    <div className="approval-card visible">
+      <div className="approval-inner">
+        <div className="clarify-header" style={{ marginBottom: 10 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Clarification needed</span>
+        </div>
+        {question && <div className="clarify-question" style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.7, marginBottom: 12 }}>{question}</div>}
+        {choices.length > 0 && (
+          <div className="clarify-choices" style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+            {choices.map((c, i) => (
+              <button key={i} className="clarify-choice" onClick={() => onChoice(c)} style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '11px 14px',
+                borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
+                border: '1px solid var(--accent-bg-strong)', background: 'var(--accent-bg)', color: 'var(--accent-text)',
+              }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 24, height: 24, borderRadius: 999, background: 'var(--accent-bg-strong)', fontSize: 11, fontWeight: 800 }}>{i + 1}</span>
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="clarify-response" style={{ display: 'flex', gap: 8 }}>
+          <input value={input} onChange={e => onInputChange(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') onSubmit(); }}
+            placeholder="Type your response..." style={{
+              flex: 1, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8,
+              background: 'var(--bg)', color: 'var(--text)', fontSize: 13, outline: 'none',
+            }} />
+          <button onClick={onSubmit} className="btn-primary-sm" style={{ padding: '10px 16px' }}>Send</button>
+          <button onClick={onDismiss} className="btn-icon-sm" title="Dismiss">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Upload progress bar */
+function UploadBar({ progress }: { progress: number }) {
+  return (
+    <div className="upload-bar-wrap active" style={{ margin: '0 auto', maxWidth: 780 }}>
+      <div className="upload-bar" style={{ width: `${progress}%` }} />
     </div>
   );
 }

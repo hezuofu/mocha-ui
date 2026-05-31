@@ -6,6 +6,10 @@ interface StreamingState {
   approvalCount: number;
   approvalId: string | null;
   clarifyPending: boolean;
+  clarifyQuestion: string;
+  clarifyChoices: string[];
+  compressionRunning: boolean;
+  compressionMessage: string;
   contextTokens: number;
   contextMax: number;
 
@@ -14,6 +18,9 @@ interface StreamingState {
   setApproval: (count: number, approvalId?: string) => void;
   clearApproval: () => void;
   setClarify: (pending: boolean) => void;
+  showClarify: (question: string, choices: string[]) => void;
+  hideClarify: () => void;
+  setCompression: (running: boolean, message?: string) => void;
   setContext: (tokens: number, max: number) => void;
 }
 
@@ -23,6 +30,10 @@ export const useStreamingStore = create<StreamingState>((set) => ({
   approvalCount: 0,
   approvalId: null,
   clarifyPending: false,
+  clarifyQuestion: '',
+  clarifyChoices: [],
+  compressionRunning: false,
+  compressionMessage: '',
   contextTokens: 0,
   contextMax: 200000,
 
@@ -44,6 +55,18 @@ export const useStreamingStore = create<StreamingState>((set) => ({
 
   setClarify(pending: boolean) {
     set({ clarifyPending: pending });
+  },
+
+  showClarify(question: string, choices: string[]) {
+    set({ clarifyPending: true, clarifyQuestion: question, clarifyChoices: choices });
+  },
+
+  hideClarify() {
+    set({ clarifyPending: false, clarifyQuestion: '', clarifyChoices: [] });
+  },
+
+  setCompression(running: boolean, message?: string) {
+    set({ compressionRunning: running, compressionMessage: message || '' });
   },
 
   setContext(tokens: number, max: number) {

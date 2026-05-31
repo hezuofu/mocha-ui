@@ -3,8 +3,10 @@ import { useSessionStore } from '../../store/sessionStore';
 import { useStreamingStore } from '../../store/streamingStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { usePanelStore, type PanelId } from '../../store/panelStore';
 import { startChat, sendMessage, cancelStream, getProfiles, switchProfile } from '../../api/endpoints';
 import { connectSSE, closeSSE } from '../../api/sse';
+import { useTheme } from '../../hooks/useTheme';
 import type { Profile } from '../../types';
 /* All icons replaced with original inline SVGs from static/index.html */
 
@@ -34,12 +36,88 @@ export default function Composer() {
   const toggleWorkspace = useWorkspaceStore(s => s.toggle);
   const currentWorkspace = useWorkspaceStore(s => s.currentPath);
 
+  const saveSettings = useSettingsStore(s => s.saveSettings);
+  const createSession = useSessionStore(s => s.createSession);
+  const renameSession = useSessionStore(s => s.renameSession);
+  const switchPanel = usePanelStore(s => s.switchTo);
+  const { setTheme, setSkin, setFontSize } = useTheme();
+
   const [showReasoning, setShowReasoning] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
-  const [input, setInput] = useState('');
+  const [yoloMode, setYoloMode] = useState(false);
+  const [showCommands, setShowCommands] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [showProfilePicker, setShowProfilePicker] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [input, setInput] = useState('');
+
+  // Built-in slash commands
+  // Full command definitions with handlers
+  const commands = [
+    { name: '/help', desc: 'Show available commands', action: () => { setInput('/help — Commands: /model /theme /new /clear /stop /retry /undo /voice /yolo /workspace /title /reasoning /compress /status /usage /background /btw /branch /compact /personality /goal /interrupt /steer /queue /skills /dark /light /system /skin /font /language /export /import'); } },
+    { name: '/model', desc: 'Switch AI model', action: (arg: string) => { if (arg) saveSettings({ model: arg }); } },
+    { name: '/theme', desc: 'Switch theme (dark/light/system)', action: (arg: string) => { if (arg === 'dark' || arg === 'light' || arg === 'system') setTheme(arg); } },
+    { name: '/dark', desc: 'Switch to dark theme', action: () => { setTheme('dark'); } },
+    { name: '/light', desc: 'Switch to light theme', action: () => { setTheme('light'); } },
+    { name: '/system', desc: 'Use system theme', action: () => { setTheme('system'); } },
+    { name: '/skin', desc: 'Switch accent skin', action: (arg: string) => { if (arg) setSkin(arg); } },
+    { name: '/font', desc: 'Set font size (small/default/large/xlarge)', action: (arg: string) => { if (arg) setFontSize(arg); } },
+    { name: '/new', desc: 'Create new conversation', action: () => { createSession(); } },
+    { name: '/clear', desc: 'Clear composer input', action: () => { setInput(''); } },
+    { name: '/stop', desc: 'Stop current generation', action: () => { if (activeSid && activeStreamId) cancelStream(activeSid, activeStreamId); } },
+    { name: '/retry', desc: 'Retry last assistant message', action: () => { import('../../api/endpoints').then(({ retryMessage }) => { if (activeSid) retryMessage(activeSid, -1); }); } },
+    { name: '/undo', desc: 'Undo last exchange', action: () => { import('../../api/endpoints').then(({ editAndRegenerate }) => { if (activeSid) editAndRegenerate(activeSid, -1, ''); }); } },
+    { name: '/voice', desc: 'Toggle voice input', action: () => { setVoiceActive(!voiceActive); } },
+    { name: '/yolo', desc: 'Toggle YOLO mode (auto-approve all)', action: () => { setYoloMode(!yoloMode); } },
+    { name: '/workspace', desc: 'Switch workspace path', action: (arg: string) => { if (arg) { import('../../api/endpoints').then(({ listDir }) => { listDir(arg); useWorkspaceStore.getState().navigate(arg); }); } } },
+    { name: '/title', desc: 'Rename current session', action: (arg: string) => { if (arg && activeSid) renameSession(activeSid, arg); } },
+    { name: '/reasoning', desc: 'Set reasoning effort (none/minimal/low/medium/high/xhigh/max)', action: () => { setShowReasoning(true); } },
+    { name: '/compress', desc: 'Compress conversation context', action: () => { import('../../api/endpoints').then(({ getCompressStatus }) => { if (activeSid) getCompressStatus(activeSid); }); } },
+    { name: '/compact', desc: 'Alias for /compress', action: () => { import('../../api/endpoints').then(({ getCompressStatus }) => { if (activeSid) getCompressStatus(activeSid); }); } },
+    { name: '/status', desc: 'Show session status', action: () => { if (activeSid) import('../../api/endpoints').then(({ getSession }) => { getSession(activeSid); }); } },
+    { name: '/usage', desc: 'Show token usage', action: () => { alert(`Tokens: ${contextTokens.toLocaleString()} / ${contextMax.toLocaleString()} (${Math.round((contextTokens / contextMax) * 100)}%)`); } },
+    { name: '/background', desc: 'Run prompt in background', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/background', { session_id: activeSid, prompt: arg }); }); } } },
+    { name: '/btw', desc: 'Start a by-the-way task', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/btw', { session_id: activeSid, question: arg }); }); } } },
+    { name: '/branch', desc: 'Create a branch from current session', action: (arg: string) => { if (activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/session/branch', { session_id: activeSid, title: arg || undefined }); }); } } },
+    { name: '/personality', desc: 'Set agent personality', action: (arg: string) => { if (activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/personality/set', { session_id: activeSid, name: arg || '' }); }); } } },
+    { name: '/goal', desc: 'Set agent goal', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/goal', { session_id: activeSid, goal: arg }); }); } } },
+    { name: '/interrupt', desc: 'Interrupt and send new message', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/chat/steer', { session_id: activeSid, message: arg, mode: 'interrupt' }); }); } } },
+    { name: '/steer', desc: 'Steer agent mid-task', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/chat/steer', { session_id: activeSid, message: arg, mode: 'steer' }); }); } } },
+    { name: '/queue', desc: 'Queue a message for next turn', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/chat/send', { session_id: activeSid, message: arg, stream_id: activeStreamId || 'queue', queue: true }); }); } } },
+    { name: '/skills', desc: 'Search and toggle skills', action: (arg: string) => { if (arg) { switchPanel('skills' as PanelId); import('../../api/endpoints').then(({ searchSkills }) => { searchSkills(arg); }); } } },
+    { name: '/language', desc: 'Switch UI language', action: (arg: string) => { if (arg) saveSettings({ language: arg }); } },
+    { name: '/export', desc: 'Export session as JSON', action: () => { if (activeSid) { import('../../api/endpoints').then(({ exportSession }) => { exportSession(activeSid, 'json').then(r => { const b = new Blob([r.data], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'session.json'; a.click(); }); }); } } },
+    { name: '/import', desc: 'Import session from JSON', action: () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json'; inp.onchange = async () => { const f = inp.files?.[0]; if (f) { const t = await f.text(); import('../../api/endpoints').then(({ importSession }) => { importSession(t).then(() => window.location.reload()); }); } }; inp.click(); } },
+  ];
+
+  const handleInputChange = useCallback((value: string) => {
+    setInput(value);
+    setShowCommands(value.startsWith('/') && !value.includes(' '));
+  }, []);
+
+  // Execute a command
+  const executeCommand = useCallback((text: string) => {
+    const parts = text.split(/\s+/);
+    const cmdName = parts[0].toLowerCase();
+    const arg = parts.slice(1).join(' ');
+    const cmd = commands.find(c => c.name === cmdName);
+    if (cmd) {
+      setInput('');
+      setShowCommands(false);
+      cmd.action(arg);
+      return true;
+    }
+    return false;
+  }, [commands]);
+
+  const applyCommand = useCallback((cmdName: string) => {
+    setInput(cmdName + ' ');
+    setShowCommands(false);
+  }, []);
+
+  const matchingCommands = showCommands
+    ? commands.filter(c => c.name.startsWith(input.toLowerCase()))
+    : [];
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const activeProfile = useSessionStore(s => s.activeProfile);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -117,6 +195,10 @@ export default function Composer() {
   const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || !activeSid) return;
+
+    // Check if it's a command
+    if (text.startsWith('/') && executeCommand(text)) return;
+
     if (busy) return;
 
     setInput('');
@@ -156,6 +238,23 @@ export default function Composer() {
             closeSSE(activeSid);
           } else if (event === 'thinking') {
             appendToken(data);
+          } else if (event === 'clarify') {
+            try {
+              const d = typeof data === 'string' ? JSON.parse(data) : data;
+              useStreamingStore.getState().showClarify(d.question || '', d.choices || []);
+            } catch {}
+          } else if (event === 'compression') {
+            useStreamingStore.getState().setCompression(true, typeof data === 'string' ? data : 'Compressing...');
+          } else if (event === 'status') {
+            try {
+              const d = typeof data === 'string' ? JSON.parse(data) : data;
+              if (d.context_tokens && d.context_max) {
+                useStreamingStore.getState().setContext(d.context_tokens, d.context_max);
+              }
+              if (d.compression === 'done') {
+                useStreamingStore.getState().setCompression(false);
+              }
+            } catch {}
           }
         } catch { /* ignore parse errors */ }
       });
@@ -235,7 +334,7 @@ export default function Composer() {
           ref={textareaRef}
           id="msg"
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={e => handleInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           placeholder="Message Hermes…"
@@ -312,7 +411,7 @@ export default function Composer() {
 
             {/* Reasoning chip */}
             <div className="composer-reasoning-wrap">
-              <button className="composer-reasoning-chip" type="button" onClick={() => setShowReasoning(!showReasoning)} title="Reasoning effort">
+              <button className={`composer-reasoning-chip${showReasoning ? ' active' : ''}`} type="button" onClick={() => setShowReasoning(!showReasoning)} title="Reasoning effort">
                 <span className="composer-model-icon" aria-hidden="true">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2z"/></svg>
                 </span>
@@ -321,6 +420,15 @@ export default function Composer() {
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </span>
               </button>
+              {showReasoning && (
+                <div className="model-picker" style={{ minWidth: 140, left: 0 }}>
+                  {['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map(level => (
+                    <button key={level} className="model-picker-item" onClick={() => setShowReasoning(false)}>
+                      <span style={{ textTransform: 'capitalize' }}>{level}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Model chip */}
@@ -338,6 +446,12 @@ export default function Composer() {
           </div>
 
           <div className="composer-right">
+            {yoloMode && (
+              <span className="yolo-pill" onClick={() => setYoloMode(false)} title="Disable YOLO mode">
+                <span className="yolo-pill-icon">⚡</span>
+                <span className="yolo-pill-label">YOLO</span>
+              </span>
+            )}
             <button type="button" className={`icon-btn voice-mode-btn${voiceActive ? ' active' : ''}`} onClick={() => setVoiceActive(!voiceActive)} title="Voice mode">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 10v4"/><path d="M6 6v12"/><path d="M10 3v18"/><path d="M14 8v8"/><path d="M18 5v14"/><path d="M22 10v4"/></svg>
             </button>
@@ -366,6 +480,19 @@ export default function Composer() {
             )}
           </div>
         </div>
+
+        {/* Slash command autocomplete */}
+        {showCommands && matchingCommands.length > 0 && (
+          <div className="model-picker" style={{ left: 16, right: 'auto', minWidth: 260, maxHeight: 300 }}>
+            {matchingCommands.map(cmd => (
+              <button key={cmd.name} className="model-picker-item" onClick={() => applyCommand(cmd.name)}
+                style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+                <span style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: 12 }}>{cmd.name}</span>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>{cmd.desc}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {showModelPicker && (
           <div className="model-picker">

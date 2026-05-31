@@ -12,6 +12,9 @@ import Sidebar from './components/layout/Sidebar';
 import WorkspacePanel from './components/layout/WorkspacePanel';
 import LoginPage from './components/auth/LoginPage';
 import MainArea from './components/chat/MainArea';
+import { ToastProvider } from './components/shared/Toast';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import OnboardingWizard from './components/onboarding/OnboardingWizard';
 
 const PANEL_TITLEBAR_KEYS: Record<string, string> = {
   tasks: 'Scheduled jobs',
@@ -38,6 +41,7 @@ export default function App() {
   const switchPanel = usePanelStore(s => s.switchTo);
   const { theme, skin, fontSize } = useTheme();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  useKeyboardShortcuts();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('hermes-webui-sidebar-collapsed') === '1'; }
     catch { return false; }
@@ -93,6 +97,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/*" element={
+        <ToastProvider>
+        <OnboardingWizard />
         <div className={`app-root ${theme}`}>
           <Titlebar
             onToggleMobileSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
@@ -112,6 +118,7 @@ export default function App() {
             <WorkspacePanel />
           </div>
         </div>
+        </ToastProvider>
       } />
     </Routes>
   );
