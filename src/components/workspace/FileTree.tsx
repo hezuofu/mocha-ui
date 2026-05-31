@@ -24,9 +24,15 @@ export default function FileTree() {
     const key = entry.path;
     setExpandedDirs(prev => {
       const next = new Set(prev);
-      if (next.has(key)) { next.delete(key); } else { next.add(key); navigate(entry.path); }
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
       return next;
     });
+    // Navigate into the directory to load its contents
+    await navigate(entry.path);
   }, [navigate]);
 
   const handleCreate = useCallback(async () => {

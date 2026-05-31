@@ -92,7 +92,7 @@ export default function Composer() {
     { name: '/steer', desc: 'Steer agent mid-task', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/chat/steer', { session_id: activeSid, message: arg, mode: 'steer' }); }); } } },
     { name: '/queue', desc: 'Queue a message for next turn', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/chat/send', { session_id: activeSid, message: arg, stream_id: activeStreamId || 'queue', queue: true }); }); } } },
     { name: '/skills', desc: 'Search and toggle skills', action: (arg: string) => { if (arg) { switchPanel('skills' as PanelId); import('../../api/endpoints').then(({ searchSkills }) => { searchSkills(arg); }); } } },
-    { name: '/language', desc: 'Switch UI language', action: (arg: string) => { if (arg) saveSettings({ language: arg }); } },
+    { name: '/language', desc: 'Switch UI language', action: (arg: string) => { if (arg) { const { setLocale } = require("../../i18n").useI18n; try { const ctx = document.createElement("div"); ctx.remove(); useI18n().setLocale(arg); } catch {}; saveSettings({ language: arg }) }; } },
     { name: '/export', desc: 'Export session as JSON', action: () => { if (activeSid) { import('../../api/endpoints').then(({ exportSession }) => { exportSession(activeSid, 'json').then(r => { const b = new Blob([r.data], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'session.json'; a.click(); }); }); } } },
     { name: '/import', desc: 'Import session from JSON', action: () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json'; inp.onchange = async () => { const f = inp.files?.[0]; if (f) { const t = await f.text(); import('../../api/endpoints').then(({ importSession }) => { importSession(t).then(() => window.location.reload()); }); } }; inp.click(); } },
   ];
@@ -490,10 +490,10 @@ export default function Composer() {
             <span className="composer-status" style={{ fontSize: 11, color: 'var(--muted)', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {busy ? 'Streaming...' : ''}
             </span>
-            <span className="queue-pill-outer show" style={{ display: 'none', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, background: 'var(--accent-bg)', color: 'var(--accent-text)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-              <span className="queue-pill-count">0</span>
+            <span className="queue-pill-outer show" style={{ display: queueCount > 0 ? .inline-flex. : .none., alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, background: 'var(--accent-bg)', color: 'var(--accent-text)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+              <span className="queue-pill-count">{queueCount}</span>
             </span>
-            <span className="bg-badge" style={{ display: 'none', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, background: 'var(--accent-bg-strong)', color: 'var(--accent-text)', fontSize: 10, fontWeight: 600 }}>0</span>
+            <span className="bg-badge" style={{ display: queueCount > 0 ? .inline-flex. : .none., alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, background: 'var(--accent-bg-strong)', color: 'var(--accent-text)', fontSize: 10, fontWeight: 600 }}>{queueCount}</span>
             {yoloMode && (
               <span className="yolo-pill" onClick={() => setYoloMode(false)} title="Disable YOLO mode">
                 <span className="yolo-pill-icon">⚡</span>

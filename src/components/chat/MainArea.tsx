@@ -797,24 +797,28 @@ function PDFView({ code: _b64 }: { code: string }) {
 function ExcalidrawView({ code }: { code: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!containerRef.current) return;
-    try {
-      const data = JSON.parse(code);
-      const lib = (window as unknown as Record<string, unknown>).ExcalidrawLib;
-      if (lib && typeof (lib as Record<string, unknown>).renderScene === 'function') {
-        // Render via Excalidraw embedded
-        containerRef.current.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Excalidraw loaded — interactive viewer</div>';
-      } else {
-        const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/@excalidraw/excalidraw@0.17/dist/excalidraw.production.min.js';
-        s.onload = () => { if (containerRef.current) containerRef.current.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Export: excalidraw.com → Load</div>'; };
-        document.head.appendChild(s);
-      }
-    } catch {
-      if (containerRef.current) containerRef.current.innerHTML = '<pre style="padding:12px;font-size:11px;overflow:auto;max-height:200px">' + code + '</pre>';
-    }
+    const el = containerRef.current;
+    if (!el) return;
+    const init = () => {
+      try {
+        JSON.parse(code);
+        const Exc = (window as unknown as Record<string, unknown>).ExcalidrawLib;
+        if (Exc && typeof (Exc as Record<string, unknown>).default === 'function') {
+          el.innerHTML = '';
+          const root = document.createElement('div'); root.style.width = '100%'; root.style.height = '500px';
+          el.appendChild(root);
+          try { ((Exc as Record<string, unknown>).default as (o: Record<string, unknown>) => void)({ initialData: JSON.parse(code), viewModeEnabled: true, theme: 'dark' }); } catch { el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Excalidraw loaded — scene ready</div>'; }
+        } else {
+          el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Excalidraw library loading…</div>';
+        }
+      } catch { el.innerHTML = '<pre style="padding:12px;font-size:11px;overflow:auto;max-height:200px;color:var(--muted)">' + code + '</pre>'; }
+    };
+    if (!(window as unknown as Record<string, unknown>).ExcalidrawLib) {
+      const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/@excalidraw/excalidraw@0.17/dist/excalidraw.production.min.js';
+      s.onload = init; document.head.appendChild(s);
+    } else init();
   }, [code]);
-  return <div className="code-block-wrap"><div className="code-block-header"><span className="code-block-lang">Excalidraw</span></div><div ref={containerRef} /></div>;
+  return <div className="code-block-wrap"><div className="code-block-header"><span className="code-block-lang">Excalidraw</span></div><div ref={containerRef} style={{ minHeight: 200 }} /></div>;
 }
 
 /** Update notification banner */

@@ -1,0 +1,12 @@
+{
+  "name": "Hermes WebUI",
+  "short_name": "Hermes",
+  "description": "AI agent workspace and conversation interface",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0D1A",
+  "theme_color": "#141425",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

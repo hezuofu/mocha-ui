@@ -3,7 +3,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import FileTree from '../workspace/FileTree';
 import FilePreview from '../workspace/FilePreview';
 import Breadcrumb from '../workspace/Breadcrumb';
-/* All icons replaced with original inline SVGs from static/icons.js */
+import GitBadge from '../workspace/GitBadge';
 
 export default function WorkspacePanel() {
   const workspaceOpen = useWorkspaceStore(s => s.open);
@@ -29,6 +29,7 @@ export default function WorkspacePanel() {
         <div className="workspace-panel-title-group">
           <span className="workspace-panel-heading">Workspace</span>
           <Breadcrumb />
+          <GitBadge />
         </div>
         <div className="workspace-panel-actions">
           <div style={{ position: 'relative' }}>
