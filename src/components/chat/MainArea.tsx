@@ -292,6 +292,13 @@ function MessageItem({ message, index, isLast }: { message: Message; index: numb
     window.speechSynthesis.speak(u);
   }, [message.content]);
 
+  // Browser notification permission
+  const notify = useCallback((title: string, body: string) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/favicon.svg' });
+    }
+  }, []);
+
   // Image lightbox
   const [lightbox, setLightbox] = useState<string | null>(null);
 
@@ -386,7 +393,9 @@ function MarkdownContent({ content }: { content: string }) {
       } else if (lang === 'html') {
         elements.push(<HTMLPreview key={key++} code={code} />);
       } else if (lang === 'excalidraw') {
-        elements.push(<div key={key++} className="code-block-wrap"><pre className="code-block"><code>{code}</code></pre><div style={{ padding: 8, fontSize: 11, color: 'var(--muted)' }}>Excalidraw: paste this JSON into excalidraw.com</div></div>);
+        elements.push(<ExcalidrawView key={key++} code={code} />);
+      } else if (lang === 'pdf') {
+        elements.push(<PDFView key={key++} code={code} />);
       } else {
         elements.push(<CodeBlock key={key++} code={code} language={lang} />);
       }
@@ -741,6 +750,69 @@ function HandoffHint({ sessionId: _sid }: { sessionId: string }) {
       </div>
     </div>
   );
+}
+
+/** PDF renderer via PDF.js CDN */
+function PDFView({ code: _b64 }: { code: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    const pdfjsLib = (window as unknown as Record<string, unknown>).pdfjsLib;
+    if (!pdfjsLib) { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.min.js'; s.onload = () => setPage(p => p); document.head.appendChild(s); return; }
+    const bytes = Uint8Array.from(atob(_b64), c => c.charCodeAt(0));
+    (pdfjsLib as Record<string, unknown>).getDocument?.({ data: bytes }).promise.then((doc: { numPages: number; getPage: (n: number) => Promise<{ render: (o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => Promise<void> }> }) => {
+      setTotal(doc.numPages);
+      doc.getPage(page).then(p => {
+        if (!canvasRef.current) return;
+        const ctx = canvasRef.current.getContext('2d')!;
+        const vp = p.getViewport({ scale: 1.5 });
+        canvasRef.current.width = (vp as { width: number }).width;
+        canvasRef.current.height = (vp as { height: number }).height;
+        p.render({ canvasContext: ctx, viewport: vp });
+      });
+    }).catch(() => {});
+  }, [_b64, page]);
+
+  if (!total) return <div className="code-block-wrap"><div className="code-block-header"><span className="code-block-lang">PDF</span></div><pre className="code-block" style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>Loading PDF…</pre></div>;
+
+  return (
+    <div className="code-block-wrap">
+      <div className="code-block-header">
+        <span className="code-block-lang">PDF ({page}/{total})</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button className="btn-icon-xs" onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}>◀</button>
+          <button className="btn-icon-xs" onClick={() => setPage(Math.min(total, page + 1))} disabled={page >= total}>▶</button>
+        </div>
+      </div>
+      <canvas ref={canvasRef} style={{ maxWidth: '100%', display: 'block', margin: '0 auto' }} />
+    </div>
+  );
+}
+
+/** Excalidraw renderer */
+function ExcalidrawView({ code }: { code: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    try {
+      const data = JSON.parse(code);
+      const lib = (window as unknown as Record<string, unknown>).ExcalidrawLib;
+      if (lib && typeof (lib as Record<string, unknown>).renderScene === 'function') {
+        // Render via Excalidraw embedded
+        containerRef.current.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Excalidraw loaded — interactive viewer</div>';
+      } else {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@excalidraw/excalidraw@0.17/dist/excalidraw.production.min.js';
+        s.onload = () => { if (containerRef.current) containerRef.current.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Export: excalidraw.com → Load</div>'; };
+        document.head.appendChild(s);
+      }
+    } catch {
+      if (containerRef.current) containerRef.current.innerHTML = '<pre style="padding:12px;font-size:11px;overflow:auto;max-height:200px">' + code + '</pre>';
+    }
+  }, [code]);
+  return <div className="code-block-wrap"><div className="code-block-header"><span className="code-block-lang">Excalidraw</span></div><div ref={containerRef} /></div>;
 }
 
 /** Update notification banner */

@@ -50,6 +50,23 @@ export default function SessionItem({
 }: SessionItemProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [swipeX, setSwipeX] = useState(0);
+  const touchStartRef = useRef(0);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartRef.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const dx = e.touches[0].clientX - touchStartRef.current;
+    setSwipeX(Math.max(-80, Math.min(80, dx)));
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (swipeX > 60) { onPin(); }
+    else if (swipeX < -60) { onDelete(); }
+    setSwipeX(0);
+  }, [swipeX, onPin, onDelete]);
   const [editTitle, setEditTitle] = useState(session.title);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -81,8 +98,10 @@ export default function SessionItem({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={cls} onClick={onSelect} role="button" tabIndex={0}
+    <div className={`${cls}${swipeX > 0 ? " swiping-right" : swipeX < 0 ? " swiping-left" : ""}`} onClick={onSelect} role="button" tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter') onSelect(); }}
+      onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+      style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)`, transition: "transform .3s ease" } : undefined}
     >
       {/* Batch select checkbox */}
       {batchMode && (
