@@ -45,34 +45,28 @@ export default function CronPanel() {
     resetForm(); load();
   };
 
-  if (loading) return <div className="panel-loading"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></div>;
+  if (loading) return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 20, color: "var(--muted)" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></div>;
 
   return (
-    <div className="cron-panel">
-      <div className="panel-toolbar">
-        <button className="btn-icon-sm" onClick={load}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
-        <button className="btn-primary-sm" onClick={() => { resetForm(); setShowForm(!showForm); }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New job
-        </button>
-      </div>
+    <>
 
       {showForm && (
         <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <input autoFocus className="memory-textarea" style={{ padding: '6px 10px', minHeight: 'auto' }} value={formName} onChange={e => setFormName(e.target.value)} placeholder="Job name..." />
-          <input className="memory-textarea" style={{ padding: '6px 10px', minHeight: 'auto' }} value={formSchedule} onChange={e => setFormSchedule(e.target.value)} placeholder="Cron schedule (e.g. 0 9 * * *)" />
-          <input className="memory-textarea" style={{ padding: '6px 10px', minHeight: 'auto' }} value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Description (optional)" />
-          <input className="memory-textarea" style={{ padding: '6px 10px', minHeight: 'auto' }} value={formAgent} onChange={e => setFormAgent(e.target.value)} placeholder="Agent name (optional)" />
+          <input autoFocus style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }} style={{ padding: '6px 10px', minHeight: 'auto' }} value={formName} onChange={e => setFormName(e.target.value)} placeholder="Job name..." />
+          <input style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }} style={{ padding: '6px 10px', minHeight: 'auto' }} value={formSchedule} onChange={e => setFormSchedule(e.target.value)} placeholder="Cron schedule (e.g. 0 9 * * *)" />
+          <input style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }} style={{ padding: '6px 10px', minHeight: 'auto' }} value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Description (optional)" />
+          <input style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }} style={{ padding: '6px 10px', minHeight: 'auto' }} value={formAgent} onChange={e => setFormAgent(e.target.value)} placeholder="Agent name (optional)" />
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn-primary-sm" onClick={handleSubmit} disabled={!formName.trim()}>{editingId ? 'Update' : 'Create'}</button>
-            <button className="btn-icon-sm" onClick={resetForm}>Cancel</button>
+            <button className="panel-icon-btn" onClick={handleSubmit} disabled={!formName.trim()}>{editingId ? 'Update' : 'Create'}</button>
+            <button className="panel-icon-btn" onClick={resetForm}>Cancel</button>
           </div>
         </div>
       )}
 
       {jobs.length === 0 ? (
-        <div className="panel-empty">No cron jobs configured</div>
+        <div style={{ padding: 12, color: "var(--muted)", fontSize: 12, textAlign: "center" }}>No cron jobs configured</div>
       ) : (
-        <div className="cron-list">
+        <>
           {jobs.map(job => (
             <div key={job.id} className="cron-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setExpandedId(expandedId === job.id ? null : job.id)}>
@@ -84,18 +78,18 @@ export default function CronPanel() {
                   </div>
                 </div>
                 <div className="cron-item-actions">
-                  <button className="btn-icon-sm" onClick={e => { e.stopPropagation(); job.active === false ? handleResume(job.id) : handlePause(job.id); }} title={job.active === false ? 'Resume' : 'Pause'}>
+                  <button className="panel-icon-btn" onClick={e => { e.stopPropagation(); job.active === false ? handleResume(job.id) : handlePause(job.id); }} title={job.active === false ? 'Resume' : 'Pause'}>
                     {job.active === false
                       ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                       : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>}
                   </button>
-                  <button className="btn-icon-sm" onClick={e => { e.stopPropagation(); handleRun(job.id); }} title="Run now">
+                  <button className="panel-icon-btn" onClick={e => { e.stopPropagation(); handleRun(job.id); }} title="Run now">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   </button>
-                  <button className="btn-icon-sm" onClick={e => { e.stopPropagation(); startEdit(job); }} title="Edit">
+                  <button className="panel-icon-btn" onClick={e => { e.stopPropagation(); startEdit(job); }} title="Edit">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                   </button>
-                  <button className="btn-icon-sm danger" onClick={e => { e.stopPropagation(); handleDelete(job.id); }} title="Delete">
+                  <button className="panel-icon-btn danger" onClick={e => { e.stopPropagation(); handleDelete(job.id); }} title="Delete">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
                   </button>
                 </div>
@@ -110,8 +104,8 @@ export default function CronPanel() {
               )}
             </div>
           ))}
-        </div>
+        </>
       )}
-    </div>
+    </>
   );
 }

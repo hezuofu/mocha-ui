@@ -87,11 +87,11 @@ export default function ComposerTerminal() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '0 4px' }}>
               <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', letterSpacing: '.02em' }}>Terminal</span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                <button className="btn-icon-sm" onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Expand' : 'Collapse'}>
+                <button className="panel-icon-btn" onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Expand' : 'Collapse'}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">{collapsed ? <polyline points="6 9 12 15 18 9"/> : <polyline points="6 15 12 9 18 15"/>}</svg>
                 </button>
-                <button className="btn-icon-sm" onClick={() => { if (termRef.current) termRef.current.writeln(''); termRef.current?.focus(); }} title="Clear">Clear</button>
-                <button className="btn-icon-sm" onClick={() => { setOpen(false); }} title="Close">
+                <button className="panel-icon-btn" onClick={() => { if (termRef.current) termRef.current.writeln(''); termRef.current?.focus(); }} title="Clear">Clear</button>
+                <button className="panel-icon-btn" onClick={() => { setOpen(false); }} title="Close">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>

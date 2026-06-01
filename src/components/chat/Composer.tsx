@@ -452,8 +452,8 @@ export default function Composer() {
                     value={toolsetsInput} onChange={e => setToolsetsInput(e.target.value)}
                     placeholder="e.g. python, shell, file_ops" />
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                    <button className="btn-icon-sm" onClick={() => { setToolsetsInput(''); setShowToolsets(false); }} style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 14px', fontSize: 12 }}>Clear</button>
-                    <button className="btn-primary-sm" onClick={() => setShowToolsets(false)}>Apply</button>
+                    <button className="panel-icon-btn" onClick={() => { setToolsetsInput(''); setShowToolsets(false); }} style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 14px', fontSize: 12 }}>Clear</button>
+                    <button className="panel-icon-btn" onClick={() => setShowToolsets(false)}>Apply</button>
                   </div>
                 </div>
               )}

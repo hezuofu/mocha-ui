@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSessionStore } from '../../store/sessionStore';
 import { useI18n } from '../../i18n';
 import type { Session } from '../../types';
@@ -12,6 +13,10 @@ interface SessionListProps {
 
 export default function SessionList({ sessions, grouped, activeId, searchQuery }: SessionListProps) {
   const { t } = useI18n();
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggleGroup = (name: string) => {
+    setCollapsed(prev => { const next = new Set(prev); if (next.has(name)) next.delete(name); else next.add(name); return next; });
+  };
   const loadSession = useSessionStore(s => s.loadSession);
   const deleteActiveSession = useSessionStore(s => s.deleteActiveSession);
   const pinSession = useSessionStore(s => s.pinSession);
@@ -48,38 +53,31 @@ export default function SessionList({ sessions, grouped, activeId, searchQuery }
 
   if (grouped) {
     return (
-      <div className="session-list">
+      <>
+
         {batchMode && (
           <div className="batch-action-bar">
             <span>{selectedSessionIds.size} selected</span>
             <button className="batch-exit-btn" onClick={toggleBatchMode}>Done</button>
           </div>
         )}
-        {grouped.today.length > 0 && (
-          <div className="session-group">
-            <div className="session-group-label">{t('today')}</div>
-            {grouped.today.map(s => <SessionItem key={s.session_id} {...itemProps(s)} />)}
+        {[
+          { key: 'today', label: t('today'), items: grouped.today },
+          { key: 'yesterday', label: t('yesterday'), items: grouped.yesterday },
+          { key: 'earlier', label: t('earlier'), items: grouped.earlier },
+        ].map(g => g.items.length > 0 && (
+          <div key={g.key} className="session-date-group">
+            <div className="session-date-header" onClick={() => toggleGroup(g.key)}>
+              {g.label}
+            </div>
+            {!collapsed.has(g.key) && g.items.map(s => <SessionItem key={s.session_id} {...itemProps(s)} />)}
           </div>
-        )}
-        {grouped.yesterday.length > 0 && (
-          <div className="session-group">
-            <div className="session-group-label">{t('yesterday')}</div>
-            {grouped.yesterday.map(s => <SessionItem key={s.session_id} {...itemProps(s)} />)}
-          </div>
-        )}
-        {grouped.earlier.length > 0 && (
-          <div className="session-group">
-            <div className="session-group-label">{t('earlier')}</div>
-            {grouped.earlier.map(s => <SessionItem key={s.session_id} {...itemProps(s)} />)}
-          </div>
-        )}
-      </div>
+        ))}
+      </>
     );
   }
 
   return (
-    <div className="session-list">
-      {sessions.map(s => <SessionItem key={s.session_id} {...itemProps(s)} />)}
-    </div>
+    <>{sessions.map(s => <SessionItem key={s.session_id} {...itemProps(s)} />)}</>
   );
 }

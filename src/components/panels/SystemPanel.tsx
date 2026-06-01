@@ -55,7 +55,7 @@ export default function SystemPanel() {
 
   if (loading) return (
     <div className="settings-content" style={{ overflow: 'auto', flex: 1 }}>
-      <div className="panel-loading"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 20, color: "var(--muted)" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></div>
     </div>
   );
 
@@ -74,7 +74,7 @@ export default function SystemPanel() {
           <div className="info-row"><span>Gateway</span><span className="info-value" style={{ color: (agentHealth as Record<string, unknown>)?.gateway_connected ? 'var(--success)' : 'var(--error)' }}>{(agentHealth as Record<string, unknown>)?.gateway_connected ? 'Connected' : 'Disconnected'}</span></div>
         </div>
         <div style={{ marginTop: 10 }}>
-          <button className="btn-primary-sm" onClick={handleCheckUpdates} disabled={checking}>
+          <button className="panel-icon-btn" onClick={handleCheckUpdates} disabled={checking}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
             {checking ? 'Checking...' : 'Check for updates'}
           </button>
@@ -91,7 +91,7 @@ export default function SystemPanel() {
           <input type="password" value={password} onChange={e => setPassword(e.target.value)}
             placeholder="New password..."
             style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg)', color: 'var(--text)', fontSize: 13, outline: 'none' }} />
-          <button className="btn-primary-sm" onClick={handlePasswordSave} disabled={saving || !password.trim()}>
+          <button className="panel-icon-btn" onClick={handlePasswordSave} disabled={saving || !password.trim()}>
             {saving ? 'Saving...' : 'Set'}
           </button>
         </div>
@@ -120,14 +120,14 @@ export default function SystemPanel() {
       <section className="settings-section">
         <h4>Passkeys</h4>
         <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>WebAuthn passkeys for passwordless sign-in.</p>
-        <button className="btn-primary-sm" onClick={async () => { try { await apiPost('/api/passkeys/register'); setCheckResult('Passkey registration initiated'); } catch { setCheckResult('Passkey registration not available'); } }}>Register Passkey</button>
+        <button className="panel-icon-btn" onClick={async () => { try { await apiPost('/api/passkeys/register'); setCheckResult('Passkey registration initiated'); } catch { setCheckResult('Passkey registration not available'); } }}>Register Passkey</button>
         <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>No passkeys registered.</div>
       </section>
 
       <section className="settings-section">
         <h4>Actions</h4>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button className="btn-primary-sm" onClick={() => window.location.reload()}>
+          <button className="panel-icon-btn" onClick={() => window.location.reload()}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Reload App
           </button>
           <button className="btn-danger-sm" onClick={async () => { try { await logout(); } catch {}; window.location.reload(); }}>
@@ -136,7 +136,7 @@ export default function SystemPanel() {
           <button className="btn-danger-sm" onClick={handleShutdown} style={{ borderColor: 'rgba(231,76,60,.3)', color: '#e74c3c' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg> Stop server
           </button>
-          <button className="btn-primary-sm" onClick={async () => { try { await saveSettings(settings); setCheckResult('Settings saved'); } catch { setCheckResult('Failed to save'); } }}>
+          <button className="panel-icon-btn" onClick={async () => { try { await saveSettings(settings); setCheckResult('Settings saved'); } catch { setCheckResult('Failed to save'); } }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Settings
           </button>
         </div>

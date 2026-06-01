@@ -40,7 +40,7 @@ export default function WorkspacesPanel() {
   };
 
   if (loading) return (
-    <div className="panel-loading">
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 20, color: "var(--muted)" }}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="spin">
         <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
       </svg>
@@ -49,11 +49,11 @@ export default function WorkspacesPanel() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div className="panel-toolbar">
-        <button className="btn-icon-sm" onClick={load} title="Refresh">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px 8px" }}>
+        <button className="panel-icon-btn" onClick={load} title="Refresh">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
-        <button className="btn-primary-sm" onClick={() => setCreating(!creating)}>
+        <button className="panel-icon-btn" onClick={() => setCreating(!creating)}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add
         </button>
       </div>
@@ -63,8 +63,8 @@ export default function WorkspacesPanel() {
           <input autoFocus value={newPath} onChange={e => setNewPath(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setCreating(false); }}
             placeholder="Workspace path..."
-            className="memory-textarea" style={{ padding: '6px 10px', minHeight: 'auto', flex: 1 }} />
-          <button className="btn-primary-sm" onClick={handleCreate}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></button>
+            style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }} style={{ padding: '6px 10px', minHeight: 'auto', flex: 1 }} />
+          <button className="panel-icon-btn" onClick={handleCreate}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></button>
         </div>
       )}
 
@@ -72,7 +72,7 @@ export default function WorkspacesPanel() {
 
       <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
         {workspaces.length === 0 ? (
-          <div className="panel-empty">No workspaces configured</div>
+          <div style={{ padding: 12, color: "var(--muted)", fontSize: 12, textAlign: "center" }}>No workspaces configured</div>
         ) : (
           workspaces.map(w => (
             <div key={w.path} style={{
@@ -89,11 +89,11 @@ export default function WorkspacesPanel() {
               </div>
               <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                 {!w.active && (
-                  <button className="btn-icon-sm" onClick={() => handleActivate(w.path)} title="Activate">
+                  <button className="panel-icon-btn" onClick={() => handleActivate(w.path)} title="Activate">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                   </button>
                 )}
-                <button className="btn-icon-sm danger" onClick={() => handleDelete(w.path)} title="Remove">
+                <button className="panel-icon-btn danger" onClick={() => handleDelete(w.path)} title="Remove">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>

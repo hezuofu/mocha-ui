@@ -8,9 +8,9 @@ export default function Breadcrumb() {
   if (breadcrumbs.length <= 1) return null;
 
   return (
-    <nav className="breadcrumb">
+    <div className="breadcrumb-bar">
       {breadcrumbs.map((crumb, i) => (
-        <span key={crumb.path} className="breadcrumb-item">
+        <span key={crumb.path} className="breadcrumb-seg">
           {i > 0 && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="breadcrumb-sep"><polyline points="9 18 15 12 9 6"/></svg>}
           {i === 0 ? (
             <button className="breadcrumb-link" onClick={() => navigate(crumb.path)} title="Root">
@@ -25,6 +25,6 @@ export default function Breadcrumb() {
           )}
         </span>
       ))}
-    </nav>
+    </div>
   );
 }

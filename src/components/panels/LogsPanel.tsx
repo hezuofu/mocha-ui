@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getLogs } from '../../api/endpoints';
-/* All icons replaced with original inline SVGs from static/icons.js */
 
 const LOG_FILES = ['agent', 'errors', 'gateway'] as const;
 const TAIL_OPTIONS = [100, 200, 500, 1000];
@@ -10,22 +9,37 @@ const SEVERITY_OPTIONS = [
   { value: 'warnings', label: 'Warnings+' },
 ];
 
-export default function LogsPanel() {
+function severityClass(line: string): string {
+  const text = String(line || '').toUpperCase();
+  if (/\b(WARNING|WARN)\b/.test(text)) return 'log-line-warning';
+  if (/\b(DEBUG)\b/.test(text)) return 'log-line-debug';
+  if (/\b(INFO)\b/.test(text)) return 'log-line-info';
+  if (/\b(ERROR|CRITICAL|TRACEBACK)\b/.test(text)) return 'log-line-error';
+  return '';
+}
+
+export default function LogsPanel({ sidebar }: { sidebar?: boolean }) {
   const [file, setFile] = useState<string>('agent');
   const [tail, setTail] = useState<number>(200);
   const [severity, setSeverity] = useState<string>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [wrap, setWrap] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
+  const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (animate?: boolean) => {
     setLoading(true);
     try {
       const data = await getLogs(file, tail);
-      setLogs(data.lines || []);
+      const lines = data.lines || [];
+      setLogs(lines);
+      const bytes = data.total_bytes ? Number(data.total_bytes).toLocaleString() : '0';
+      const when = data.mtime ? new Date(data.mtime * 1000).toLocaleString() : 'unknown';
+      setStatus(`${lines.length} / ${tail} lines · ${bytes} bytes · ${when}`);
     } catch {
       setLogs([]);
+      setStatus('Failed to load logs');
     }
     setLoading(false);
   }, [file, tail]);
@@ -35,15 +49,15 @@ export default function LogsPanel() {
   // Auto-refresh every 5s
   useEffect(() => {
     if (!autoRefresh) return;
-    const id = setInterval(load, 5000);
+    const id = setInterval(() => load(), 5000);
     return () => clearInterval(id);
   }, [autoRefresh, load]);
 
   const filtered = logs.filter(line => {
     if (severity === 'all') return true;
-    const lower = line.toLowerCase();
-    if (severity === 'errors') return lower.includes('error') || lower.includes('critical') || lower.includes('fatal');
-    if (severity === 'warnings') return lower.includes('warn') || lower.includes('error') || lower.includes('critical');
+    const sev = severityClass(line);
+    if (severity === 'errors') return sev === 'log-line-error';
+    if (severity === 'warnings') return sev === 'log-line-warning' || sev === 'log-line-error';
     return true;
   });
 
@@ -51,8 +65,9 @@ export default function LogsPanel() {
     await navigator.clipboard.writeText(filtered.join('\n'));
   };
 
-  return (
-    <div className="logs-panel">
+  // Sidebar mode: only render controls
+  if (sidebar) {
+    return (
       <div className="logs-control-panel">
         <label className="logs-control-label">File</label>
         <select value={file} onChange={e => setFile(e.target.value)}>
@@ -76,28 +91,47 @@ export default function LogsPanel() {
         </label>
         <button className="logs-copy" onClick={copyAll}>Copy all</button>
       </div>
-      <div className={`logs-viewport ${wrap ? 'wrap' : ''}`}>
+    );
+  }
+
+  // Main area mode: full output
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="logs-control-panel">
+        <label className="logs-control-label">File</label>
+        <select value={file} onChange={e => setFile(e.target.value)}>
+          {LOG_FILES.map(f => <option key={f} value={f}>{f}</option>)}
+        </select>
+        <label className="logs-control-label">Tail</label>
+        <select value={tail} onChange={e => setTail(Number(e.target.value))}>
+          {TAIL_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <label className="logs-control-label">Severity</label>
+        <select value={severity} onChange={e => setSeverity(e.target.value)}>
+          {SEVERITY_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+        <label className="logs-check-row">
+          <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
+          <span>Auto-refresh (5s)</span>
+        </label>
+        <label className="logs-check-row">
+          <input type="checkbox" checked={wrap} onChange={e => setWrap(e.target.checked)} />
+          <span>Wrap lines</span>
+        </label>
+        <button className="logs-copy" onClick={copyAll}>Copy all</button>
+      </div>
+      <div id="logsOutput" className={wrap ? 'wrap' : ''} style={{ flex: 1, overflow: 'auto', fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.6 }}>
         {loading ? (
-          <div className="panel-loading"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></div>
+          <div className="logs-empty" style={{ padding: 12, color: 'var(--muted)', textAlign: 'center' }}>Loading...</div>
         ) : filtered.length === 0 ? (
-          <div className="panel-empty" style={{ padding: 12 }}>No log entries</div>
+          <div className="logs-empty" style={{ padding: 12, color: 'var(--muted)', textAlign: 'center' }}>No log entries</div>
         ) : (
           filtered.map((line, i) => (
-            <div key={i} className={`log-line ${getLogClass(line)}`}>
-              <span className="log-line-num">{i + 1}</span>
-              <span className="log-line-text">{line}</span>
-            </div>
+            <div key={i} className={`log-line ${severityClass(line)}`}>{line}</div>
           ))
         )}
       </div>
+      <div id="logsStatus" style={{ padding: '6px 12px', fontSize: 10, color: 'var(--muted)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>{status}</div>
     </div>
   );
-}
-
-function getLogClass(line: string): string {
-  const lower = line.toLowerCase();
-  if (lower.includes('error') || lower.includes('critical') || lower.includes('fatal')) return 'log-error';
-  if (lower.includes('warn')) return 'log-warn';
-  if (lower.includes('info')) return 'log-info';
-  return '';
 }

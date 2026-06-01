@@ -32,16 +32,16 @@ export default function TodosPanel() {
           onChange={e => setNewText(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') addTodo(); }}
           placeholder="Add a task..."
-          className="memory-textarea"
+          style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }}
           style={{ padding: '6px 10px', minHeight: 'auto', flex: 1 }}
         />
-        <button className="btn-primary-sm" onClick={addTodo}>
+        <button className="panel-icon-btn" onClick={addTodo}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '4px 12px' }}>
         {todos.length === 0 ? (
-          <div className="panel-empty">No tasks yet</div>
+          <div style={{ padding: 12, color: "var(--muted)", fontSize: 12, textAlign: "center" }}>No tasks yet</div>
         ) : (
           todos.map(todo => (
             <div key={todo.id} style={{
@@ -50,7 +50,7 @@ export default function TodosPanel() {
               background: todo.done ? 'var(--surface-subtle)' : 'var(--bg)',
               opacity: todo.done ? 0.6 : 1,
             }}>
-              <button className="btn-icon-sm" onClick={() => toggleTodo(todo.id)} title={todo.done ? 'Unmark' : 'Mark done'}>
+              <button className="panel-icon-btn" onClick={() => toggleTodo(todo.id)} title={todo.done ? 'Unmark' : 'Mark done'}>
                 {todo.done
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                   : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg>
@@ -63,7 +63,7 @@ export default function TodosPanel() {
               }}>
                 {todo.text}
               </span>
-              <button className="btn-icon-sm danger" onClick={() => removeTodo(todo.id)} title="Delete">
+              <button className="panel-icon-btn danger" onClick={() => removeTodo(todo.id)} title="Delete">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
