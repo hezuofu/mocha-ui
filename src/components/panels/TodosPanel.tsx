@@ -1,75 +1,121 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { useSessionStore } from '../../store/sessionStore';
 
-interface Todo {
+interface TodoItem {
   id: string;
-  text: string;
-  done: boolean;
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+}
+
+/* ── Status SVGs (matching original li() icons from static/icons.js) ── */
+
+const SquareIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+  </svg>
+);
+
+const LoaderIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="spin">
+    <line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" />
+    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" /><line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
+    <line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" />
+    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" /><line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
+  </svg>
+);
+
+const CheckSqIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+  </svg>
+);
+
+const XIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const statusIcon: Record<string, React.ReactNode> = {
+  pending: <SquareIcon />,
+  in_progress: <LoaderIcon />,
+  completed: <CheckSqIcon />,
+  cancelled: <XIcon />,
+};
+
+const statusColor: Record<string, string> = {
+  pending: 'var(--muted)',
+  in_progress: 'var(--blue)',
+  completed: 'rgba(100,200,100,.8)',
+  cancelled: 'rgba(200,100,100,.5)',
+};
+
+/* ── Parse todos from session messages (matching original loadTodos()) ── */
+function parseTodos(messages: any[]): TodoItem[] {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m && m.role === 'tool') {
+      try {
+        const d = typeof m.content === 'string' ? JSON.parse(m.content) : m.content;
+        if (d && Array.isArray(d.todos) && d.todos.length) {
+          return d.todos;
+        }
+      } catch { /* malformed JSON — skip */ }
+    }
+  }
+  return [];
 }
 
 export default function TodosPanel() {
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [newText, setNewText] = useState('');
+  const messages = useSessionStore(s => s.messages);
+  const activeSid = useSessionStore(s => s.activeSessionId);
 
-  const addTodo = () => {
-    if (!newText.trim()) return;
-    setTodos([...todos, { id: String(Date.now()), text: newText.trim(), done: false }]);
-    setNewText('');
-  };
-
-  const toggleTodo = (id: string) => {
-    setTodos(todos.map(t => t.id === id ? { ...t, done: !t.done } : t));
-  };
-
-  const removeTodo = (id: string) => {
-    setTodos(todos.filter(t => t.id !== id));
-  };
+  const todos = useMemo(() => {
+    if (!activeSid || !messages.length) return [];
+    return parseTodos(messages);
+  }, [messages, activeSid]);
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ padding: '8px 12px', display: 'flex', gap: 8, flexShrink: 0 }}>
-        <input
-          value={newText}
-          onChange={e => setNewText(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') addTodo(); }}
-          placeholder="Add a task..."
-          style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }}
-          style={{ padding: '6px 10px', minHeight: 'auto', flex: 1 }}
-        />
-        <button className="panel-icon-btn" onClick={addTodo}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '4px 12px' }}>
-        {todos.length === 0 ? (
-          <div style={{ padding: 12, color: "var(--muted)", fontSize: 12, textAlign: "center" }}>No tasks yet</div>
-        ) : (
-          todos.map(todo => (
-            <div key={todo.id} style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-              border: '1px solid var(--border)', borderRadius: 8, marginBottom: 4,
-              background: todo.done ? 'var(--surface-subtle)' : 'var(--bg)',
-              opacity: todo.done ? 0.6 : 1,
+    <div id="todoPanel" style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+      {!todos.length ? (
+        <div style={{ color: 'var(--muted)', fontSize: 12, padding: '4px 0' }}>
+          No active task list in this session.
+        </div>
+      ) : (
+        todos.map(t => (
+          <div key={t.id}
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              padding: '6px 0', borderBottom: '1px solid var(--border)',
+            }}
+          >
+            <span style={{
+              fontSize: 14, display: 'inline-flex', alignItems: 'center',
+              flexShrink: 0, marginTop: 1,
+              color: statusColor[t.status] || 'var(--muted)',
             }}>
-              <button className="panel-icon-btn" onClick={() => toggleTodo(todo.id)} title={todo.done ? 'Unmark' : 'Mark done'}>
-                {todo.done
-                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg>
-                }
-              </button>
-              <span style={{
-                flex: 1, fontSize: 13, color: 'var(--text)',
-                textDecoration: todo.done ? 'line-through' : 'none',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              {statusIcon[t.status] || <SquareIcon />}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 13,
+                color: t.status === 'completed' ? 'var(--muted)' : 'var(--text)',
+                textDecoration: t.status === 'completed' ? 'line-through' : 'none',
+                opacity: t.status === 'completed' ? 0.5 : 1,
+                lineHeight: 1.4,
               }}>
-                {todo.text}
-              </span>
-              <button className="panel-icon-btn danger" onClick={() => removeTodo(todo.id)} title="Delete">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
+                {t.content}
+              </div>
+              <div style={{
+                fontSize: 10, color: 'var(--muted)',
+                marginTop: 2, opacity: 0.6,
+              }}>
+                {t.id} · {t.status}
+              </div>
             </div>
-          ))
-        )}
-      </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }

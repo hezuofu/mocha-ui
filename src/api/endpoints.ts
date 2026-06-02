@@ -3,7 +3,7 @@
 import { apiGet, apiPost } from './client';
 import type {
   Session, Message, ModelGroup, Settings, WorkspaceEntry,
-  CronJob, Skill, Profile,
+  CronJob, Skill, Profile, ProfilesResponse,
 } from '../types';
 
 // ── Health ──
@@ -140,7 +140,7 @@ export const saveUserMemory = (content: string) =>
   apiPost('/api/memory', { content, kind: 'user' });
 
 // ── Profiles ──
-export const getProfiles = () => apiGet<{ profiles: Profile[] }>('/api/profiles');
+export const getProfiles = () => apiGet<ProfilesResponse>('/api/profiles');
 export const switchProfile = (name: string) =>
   apiPost('/api/profiles/switch', { name });
 export const createProfile = (name: string, baseUrl?: string, apiKey?: string) =>
@@ -161,6 +161,9 @@ export const getLogs = (file: string, tail: number) =>
 // ── Insights ──
 export const getInsights = (period?: number) =>
   apiGet<Record<string, unknown>>(`/api/insights${period ? `?days=${period}` : ''}`);
+export const getSystemHealth = () => apiGet<Record<string, unknown>>('/api/system/health');
+export const getWikiStatus = () => apiGet<Record<string, unknown>>('/api/wiki/status').catch(() => ({ status: 'error' } as any));
+export const getSkillUsage = () => apiGet<Record<string, unknown>>('/api/skills/usage').catch(() => ({ usage: {}, skill_names: [], total_invocations: 0, unique_skills_used: 0 } as any));
 
 // ── Misc ──
 export const getCompressStatus = (sessionId: string) =>

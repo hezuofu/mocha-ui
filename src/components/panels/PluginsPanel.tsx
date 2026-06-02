@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react';
 import { apiGet } from '../../api/client';
 
 interface PluginInfo {
-  name: string;
-  enabled: boolean;
-  description?: string;
+  name: string; key: string; version?: string;
+  description?: string; enabled: boolean;
+  kind?: string; activation?: string; hooks?: string[];
 }
 
 export default function PluginsPanel() {
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     apiGet<{ plugins: PluginInfo[] }>('/api/plugins').then((data: unknown) => {
@@ -17,41 +18,69 @@ export default function PluginsPanel() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  const toggleCollapse = (key: string) => {
+    setCollapsed(prev => { const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next; });
+  };
+
   if (loading) return (
-    <div className="settings-content" style={{ overflow: 'auto', flex: 1 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 20, color: "var(--muted)" }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="spin">
-          <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
-        </svg>
-      </div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, color: 'var(--muted)' }}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin">
+        <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+      </svg>
     </div>
   );
 
   return (
-    <div className="settings-content" style={{ overflow: 'auto', flex: 1 }}>
-      <section className="settings-section">
-        <h4>Installed Plugins</h4>
+    <>
+      <div className="settings-section-head">
+        <div>
+          <div className="settings-section-title">Plugins</div>
+          <div className="settings-section-meta">View installed Hermes plugins and the lifecycle hooks they register. This panel is read-only.</div>
+        </div>
+      </div>
+
+      <div id="pluginsList" style={{ display: 'flex', flexDirection: 'column', marginTop: 4 }}>
         {plugins.length === 0 ? (
-          <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--muted)', border: '1px dashed var(--border)', borderRadius: 12, background: 'var(--surface-subtle)' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginBottom: 12, opacity: 0.5 }}><path d="M12 2l3 7h7l-5.5 4.3 2.1 7L12 16.2 5.4 20.3l2.1-7L2 9h7z"/></svg>
-            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>No plugins installed</p>
-            <p style={{ fontSize: 12, lineHeight: 1.5 }}>Plugins extend Hermes with additional tools, skills, and integrations.</p>
-          </div>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--muted)', fontSize: 13 }}>No plugins installed</div>
         ) : (
-          plugins.map(p => (
-            <div key={p.name} style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }}><path d="M12 2l3 7h7l-5.5 4.3 2.1 7L12 16.2 5.4 20.3l2.1-7L2 9h7z"/></svg>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{p.name}</div>
-                {p.description && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{p.description}</div>}
+          plugins.map(p => {
+            const version = p.version ? `v${p.version}` : '';
+            const meta = [p.key, version].filter(Boolean).join(' · ');
+            const isEnabled = p.enabled;
+            const hooks = p.hooks || [];
+
+            const isOpen = !collapsed.has(p.key);
+
+            return (
+              <div key={p.key} className={`provider-card plugin-card${isOpen ? ' open' : ''}`} data-plugin={p.key}>
+                <div className="provider-card-header plugin-card-header" onClick={() => toggleCollapse(p.key)} style={{ cursor: 'pointer' }}>
+                  <div className="provider-card-info">
+                    <div className="provider-card-name">{p.name}</div>
+                    <div className="provider-card-meta">{meta}</div>
+                  </div>
+                  <span className={`provider-card-badge${!isEnabled ? ' plugin-card-badge-disabled' : ''}`}>
+                    {isEnabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                  <svg className="provider-card-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" width="16" height="16"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                {isOpen && (
+                  <div className="provider-card-body plugin-card-body">
+                    {p.description && <div className="provider-card-hint">{p.description}</div>}
+                    <div className="provider-card-label">Registered hooks</div>
+                    <div className="plugin-hook-list">
+                      {hooks.length === 0 ? (
+                        <span className="plugin-hook-empty">No registered lifecycle hooks</span>
+                      ) : (
+                        hooks.map(h => <span key={h} className="plugin-hook-badge">{h}</span>)
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 999, background: p.enabled ? 'var(--accent-bg)' : 'var(--hover-bg)', color: p.enabled ? 'var(--accent-text)' : 'var(--muted)' }}>
-                {p.enabled ? 'Enabled' : 'Disabled'}
-              </span>
-            </div>
-          ))
+            );
+          })
         )}
-      </section>
-    </div>
+      </div>
+    </>
   );
 }

@@ -1,94 +1,201 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiGet } from '../../api/client';
 
 interface KanbanTask {
-  id: string; title: string; status: 'ready' | 'blocked' | 'done' | 'archived';
+  id: string; title: string; status: string;
   assignee?: string; priority?: string;
 }
 
-const COLUMNS = [
-  { key: 'ready' as const, label: 'Ready', color: 'var(--accent)' },
-  { key: 'blocked' as const, label: 'Blocked', color: 'var(--warning)' },
-  { key: 'done' as const, label: 'Done', color: 'var(--success)' },
-  { key: 'archived' as const, label: 'Archived', color: 'var(--muted)' },
-];
+interface KanbanStats { by_status?: Record<string, number>; total?: number }
 
 export default function KanbanPanel() {
   const [tasks, setTasks] = useState<KanbanTask[]>([]);
+  const [assignees, setAssignees] = useState<string[]>([]);
+  const [tenants, setTenants] = useState<string[]>([]);
+  const [stats, setStats] = useState<KanbanStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState('');
+  const [tenantFilter, setTenantFilter] = useState('');
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [onlyMine, setOnlyMine] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState('');
   const [newTitle, setNewTitle] = useState('');
-  const [dragOver, setDragOver] = useState<string | null>(null);
 
-  const load = async () => {
+  const buildQuery = useCallback(() => {
+    const p = new URLSearchParams();
+    if (assigneeFilter) p.set('assignee', assigneeFilter);
+    if (tenantFilter) p.set('tenant', tenantFilter);
+    if (includeArchived) p.set('include_archived', '1');
+    if (onlyMine) p.set('only_mine', '1');
+    const qs = p.toString();
+    return qs ? '?' + qs : '';
+  }, [assigneeFilter, tenantFilter, includeArchived, onlyMine]);
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiGet<{ tasks: KanbanTask[] }>('/api/kanban/');
-      setTasks((data as unknown as Record<string, unknown>).tasks as KanbanTask[] || []);
+      // Load board data
+      const data = await apiGet<any>('/api/kanban/board' + buildQuery());
+      const board = data || { columns: [] };
+      const allTasks: KanbanTask[] = [];
+      const cols = board.columns || [];
+      for (const col of cols) {
+        for (const t of (col.tasks || [])) {
+          allTasks.push({ ...t, status: col.name || t.status });
+        }
+      }
+      setTasks(allTasks);
+
+      // Load assignees
+      try {
+        const a = await apiGet<any>('/api/kanban/assignees');
+        const raw = a?.assignees || board?.assignees || [];
+        // Assignees may be strings or objects {name, on_disk, counts}
+        setAssignees(raw.map((v: any) => typeof v === 'string' ? v : v.name).filter(Boolean));
+      } catch { /* ignore */ }
+
+      // Load tenants
+      if (board?.tenants) {
+        const raw = board.tenants;
+        setTenants(raw.map((v: any) => typeof v === 'string' ? v : v.name || v).filter(Boolean));
+      }
+
+      // Load stats
+      try {
+        const s = await apiGet<KanbanStats>('/api/kanban/stats');
+        setStats(s);
+      } catch { /* ignore */ }
     } catch {
-      setTasks([
-        { id: '1', title: 'Review PR #3221', status: 'ready', priority: 'high', assignee: 'dev' },
-        { id: '2', title: 'Update API docs', status: 'ready', priority: 'medium' },
-        { id: '3', title: 'Fix login edge case', status: 'blocked', assignee: 'alice' },
-        { id: '4', title: 'Deploy v2.1.0', status: 'done' },
-        { id: '5', title: 'Old migration script', status: 'archived' },
-      ]);
+      setTasks([]);
     }
     setLoading(false);
-  };
+  }, [buildQuery]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
-  const moveTask = (id: string, status: KanbanTask['status']) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t));
-  };
+  // Listen for sidebar refresh button
+  useEffect(() => {
+    const h = () => load();
+    window.addEventListener('kanban-refresh', h);
+    return () => window.removeEventListener('kanban-refresh', h);
+  }, [load]);
 
-  const addTask = () => {
+  const filtered = tasks.filter(t => {
+    if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const addTask = async () => {
     if (!newTitle.trim()) return;
-    setTasks([{ id: String(Date.now()), title: newTitle.trim(), status: 'ready' }, ...tasks]);
-    setNewTitle('');
+    try {
+      const res = await apiGet<any>('/api/kanban/tasks/create', {
+        method: 'POST', body: JSON.stringify({ title: newTitle.trim() }),
+      });
+      if (res?.task) setTasks(prev => [...prev, res.task]);
+      setNewTitle('');
+    } catch { /* ignore */ }
   };
 
-  const filtered = tasks.filter(t => !search || t.title.toLowerCase().includes(search.toLowerCase()));
+  const bulkUpdate = async () => {
+    if (!bulkStatus) return;
+    try {
+      await apiGet<any>('/api/kanban/tasks/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ status: bulkStatus }),
+      });
+      load();
+    } catch { /* ignore */ }
+  };
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, color: 'var(--muted)' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></div>;
+  const totalStats = stats?.by_status
+    ? Object.values(stats.by_status).reduce((a: number, b: any) => a + Number(b || 0), 0)
+    : 0;
 
   return (
     <>
-      {/* Filter stack — matches original kanban-filter-stack */}
+      {/* ── kanban-filter-stack ── */}
       <div className="kanban-filter-stack">
+        {/* Search */}
         <div className="sidebar-search">
           <svg className="sidebar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input id="kanbanSearch" placeholder="Search tasks" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="panel-icon-btn" onClick={load} title="Refresh">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          </button>
+
+        {/* Assignee filter */}
+        <select id="kanbanAssigneeFilter" value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} aria-label="Assignee filter">
+          <option value="">All assignees</option>
+          {assignees.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+
+        {/* Tenant filter */}
+        <select id="kanbanTenantFilter" value={tenantFilter} onChange={e => setTenantFilter(e.target.value)} aria-label="Tenant filter">
+          <option value="">All tenants</option>
+          {tenants.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+
+        {/* Checkboxes */}
+        <label className="kanban-check">
+          <input id="kanbanIncludeArchived" type="checkbox" checked={includeArchived} onChange={e => setIncludeArchived(e.target.checked)} />
+          <span>Include archived</span>
+        </label>
+        <label className="kanban-check">
+          <input id="kanbanOnlyMine" type="checkbox" checked={onlyMine} onChange={e => setOnlyMine(e.target.checked)} />
+          <span>Only mine</span>
+        </label>
+
+        {/* Stats */}
+        <div id="kanbanStats" className="kanban-stats" aria-live="polite">
+          {stats?.by_status ? (
+            <div className="kanban-stats-grid">
+              <span className="kanban-stat-cell total"><strong>{totalStats}</strong> Stats</span>
+              {Object.entries(stats.by_status).sort(([a], [b]) => a.localeCompare(b)).map(([status, count]) => (
+                <span key={status} className="kanban-stat-cell"><strong>{String(count)}</strong> {status}</span>
+              ))}
+            </div>
+          ) : !loading ? (
+            <div className="kanban-stats-grid">
+              <span className="kanban-stat-cell total"><strong>0</strong> Stats</span>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Bulk bar */}
+        <div id="kanbanBulkBar" className="kanban-bulk-bar">
+          <select id="kanbanBulkStatus" value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} aria-label="Bulk status">
+            <option value="">Status</option>
+            <option value="ready">Ready</option>
+            <option value="blocked">Blocked</option>
+            <option value="done">Done</option>
+            <option value="archived">Archived</option>
+          </select>
+          <button className="btn secondary" onClick={bulkUpdate}>Bulk action</button>
+          <button className="btn secondary kanban-nudge-dispatch-btn" onClick={() => load()} title="Dry-run: shows what would be claimed without spawning workers">Preview dispatcher</button>
+          <button className="btn primary kanban-run-dispatch-btn" onClick={() => load()} title="Claims Ready tasks and spawns worker subprocesses">Run dispatcher</button>
+        </div>
+
+        {/* New task row */}
+        <div className="kanban-new-task-row">
+          <input id="kanbanNewTaskTitle" placeholder="New task" value={newTitle} onChange={e => setNewTitle(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addTask(); }} />
+          <button className="btn secondary" onClick={addTask}>New task</button>
         </div>
       </div>
 
-      {/* New task row — matches original kanban-new-task-row */}
-      <div className="kanban-new-task-row" style={{ padding: '0 12px 8px' }}>
-        <input id="kanbanNewTaskTitle" placeholder="New task" value={newTitle} onChange={e => setNewTitle(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') addTask(); }}
-          style={{ flex: 1, background: 'var(--input-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', fontSize: 12 }} />
-        <button className="panel-icon-btn" onClick={addTask} title="Create task" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New task
-        </button>
-      </div>
+      {/* ── Summary ── */}
+      <div className="kanban-summary" id="kanbanSummary">{filtered.length} visible tasks</div>
 
-      {/* Kanban list — matches original kanban-list */}
+      {/* ── Task list ── */}
       <div className="kanban-list" id="kanbanList">
-        {filtered.length === 0 ? (
-          <div style={{ padding: 12, color: 'var(--muted)', fontSize: 12 }}>No tasks found</div>
+        {loading ? (
+          <div style={{ padding: 12, color: 'var(--muted)', fontSize: 12 }}>Loading...</div>
+        ) : filtered.length === 0 ? (
+          <div className="kanban-empty">No matching tasks</div>
         ) : (
           filtered.map(task => (
             <div key={task.id} className="kanban-list-item" draggable
               onDragStart={e => { e.dataTransfer!.setData('text/plain', task.id); }}>
-              <span className="kanban-list-status" style={{ color: COLUMNS.find(c => c.key === task.status)?.color }}>
-                {task.status}
-              </span>
+              <span className="kanban-list-status">{task.status}</span>
               <span className="kanban-list-title">{task.title}</span>
               {task.assignee && <span className="kanban-list-meta" style={{ fontSize: 10, color: 'var(--muted)' }}>{task.assignee}</span>}
             </div>

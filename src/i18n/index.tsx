@@ -48,6 +48,8 @@ const messages: Record<string, Record<string, string>> = {
     installed_plugins:'Installed Plugins',versions:'Versions',
     gateway:'Gateway',mcp_servers:'MCP Servers',passkeys:'Passkeys',
     access_password:'Access Password',sidebar_tabs:'Sidebar Tabs',
+    current_task_list:'Current task list',personal_memory:'Personal memory',
+    insights_title:'Usage Analytics',choose_log_file:'Choose a log file to view recent lines.',
   },
   zh: {
     tab_chat:'对话',tab_tasks:'任务',tab_kanban:'看板',tab_skills:'技能',
@@ -94,6 +96,8 @@ const messages: Record<string, Record<string, string>> = {
     installed_plugins:'已安装插件',versions:'版本',
     gateway:'网关',mcp_servers:'MCP服务器',passkeys:'通行密钥',
     access_password:'访问密码',sidebar_tabs:'侧边栏标签',
+    current_task_list:'当前任务列表',personal_memory:'个人记忆',
+    insights_title:'使用分析',choose_log_file:'选择日志文件查看最近行。',
   },
 };
 

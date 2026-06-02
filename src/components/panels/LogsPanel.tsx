@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { getLogs } from '../../api/endpoints';
+import { useLogsStore } from '../../store/logsStore';
 
 const LOG_FILES = ['agent', 'errors', 'gateway'] as const;
 const TAIL_OPTIONS = [100, 200, 500, 1000];
@@ -18,35 +19,34 @@ function severityClass(line: string): string {
   return '';
 }
 
-export default function LogsPanel({ sidebar }: { sidebar?: boolean }) {
-  const [file, setFile] = useState<string>('agent');
-  const [tail, setTail] = useState<number>(200);
-  const [severity, setSeverity] = useState<string>('all');
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [wrap, setWrap] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [status, setStatus] = useState('');
-  const [loading, setLoading] = useState(true);
+export default function LogsPanel() {
+  const file = useLogsStore(s => s.file);
+  const tail = useLogsStore(s => s.tail);
+  const severity = useLogsStore(s => s.severity);
+  const autoRefresh = useLogsStore(s => s.autoRefresh);
+  const wrap = useLogsStore(s => s.wrap);
+  const logs = useLogsStore(s => s.logs);
+  const status = useLogsStore(s => s.status);
+  const loading = useLogsStore(s => s.loading);
+  const refreshKey = useLogsStore(s => s.refreshKey);
+  const setLogs = useLogsStore(s => s.setLogs);
+  const setLoading = useLogsStore(s => s.setLoading);
 
-  const load = useCallback(async (animate?: boolean) => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getLogs(file, tail);
       const lines = data.lines || [];
-      setLogs(lines);
       const bytes = data.total_bytes ? Number(data.total_bytes).toLocaleString() : '0';
       const when = data.mtime ? new Date(data.mtime * 1000).toLocaleString() : 'unknown';
-      setStatus(`${lines.length} / ${tail} lines · ${bytes} bytes · ${when}`);
+      setLogs(lines, `${lines.length} / ${tail} lines · ${bytes} bytes · ${when}`);
     } catch {
-      setLogs([]);
-      setStatus('Failed to load logs');
+      setLogs([], 'Failed to load logs');
     }
-    setLoading(false);
-  }, [file, tail]);
+  }, [file, tail, refreshKey, setLogs, setLoading]);
 
   useEffect(() => { load(); }, [load]);
 
-  // Auto-refresh every 5s
   useEffect(() => {
     if (!autoRefresh) return;
     const id = setInterval(() => load(), 5000);
@@ -65,73 +65,64 @@ export default function LogsPanel({ sidebar }: { sidebar?: boolean }) {
     await navigator.clipboard.writeText(filtered.join('\n'));
   };
 
-  // Sidebar mode: only render controls
-  if (sidebar) {
-    return (
-      <div className="logs-control-panel">
-        <label className="logs-control-label">File</label>
-        <select value={file} onChange={e => setFile(e.target.value)}>
-          {LOG_FILES.map(f => <option key={f} value={f}>{f}</option>)}
-        </select>
-        <label className="logs-control-label">Tail</label>
-        <select value={tail} onChange={e => setTail(Number(e.target.value))}>
-          {TAIL_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-        </select>
-        <label className="logs-control-label">Severity</label>
-        <select value={severity} onChange={e => setSeverity(e.target.value)}>
-          {SEVERITY_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
-        <label className="logs-check-row">
-          <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
-          <span>Auto-refresh (5s)</span>
-        </label>
-        <label className="logs-check-row">
-          <input type="checkbox" checked={wrap} onChange={e => setWrap(e.target.checked)} />
-          <span>Wrap lines</span>
-        </label>
-        <button className="logs-copy" onClick={copyAll}>Copy all</button>
-      </div>
-    );
-  }
-
-  // Main area mode: full output
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className="logs-control-panel">
-        <label className="logs-control-label">File</label>
-        <select value={file} onChange={e => setFile(e.target.value)}>
-          {LOG_FILES.map(f => <option key={f} value={f}>{f}</option>)}
-        </select>
-        <label className="logs-control-label">Tail</label>
-        <select value={tail} onChange={e => setTail(Number(e.target.value))}>
-          {TAIL_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-        </select>
-        <label className="logs-control-label">Severity</label>
-        <select value={severity} onChange={e => setSeverity(e.target.value)}>
-          {SEVERITY_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
-        <label className="logs-check-row">
-          <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
-          <span>Auto-refresh (5s)</span>
-        </label>
-        <label className="logs-check-row">
-          <input type="checkbox" checked={wrap} onChange={e => setWrap(e.target.checked)} />
-          <span>Wrap lines</span>
-        </label>
-        <button className="logs-copy" onClick={copyAll}>Copy all</button>
-      </div>
-      <div id="logsOutput" className={wrap ? 'wrap' : ''} style={{ flex: 1, overflow: 'auto', fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.6 }}>
+    <>
+      <div className={`logs-output${wrap ? ' wrap' : ''}`} id="logsOutput">
         {loading ? (
-          <div className="logs-empty" style={{ padding: 12, color: 'var(--muted)', textAlign: 'center' }}>Loading...</div>
+          <div style={{ color: 'var(--muted)', fontSize: 12, padding: 12 }}>Loading...</div>
         ) : filtered.length === 0 ? (
-          <div className="logs-empty" style={{ padding: 12, color: 'var(--muted)', textAlign: 'center' }}>No log entries</div>
+          <div style={{ color: 'var(--muted)', fontSize: 12, padding: 12 }}>No log entries</div>
         ) : (
           filtered.map((line, i) => (
             <div key={i} className={`log-line ${severityClass(line)}`}>{line}</div>
           ))
         )}
       </div>
-      <div id="logsStatus" style={{ padding: '6px 12px', fontSize: 10, color: 'var(--muted)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>{status}</div>
+    </>
+  );
+}
+
+/* ── Sidebar controls ── */
+export function LogsControls() {
+  const file = useLogsStore(s => s.file);
+  const tail = useLogsStore(s => s.tail);
+  const severity = useLogsStore(s => s.severity);
+  const autoRefresh = useLogsStore(s => s.autoRefresh);
+  const wrap = useLogsStore(s => s.wrap);
+  const logs = useLogsStore(s => s.logs);
+  const setFile = useLogsStore(s => s.setFile);
+  const setTail = useLogsStore(s => s.setTail);
+  const setSeverity = useLogsStore(s => s.setSeverity);
+  const setAutoRefresh = useLogsStore(s => s.setAutoRefresh);
+  const setWrap = useLogsStore(s => s.setWrap);
+
+  const copyAll = async () => {
+    await navigator.clipboard.writeText(logs.join('\n'));
+  };
+
+  return (
+    <div className="logs-control-panel">
+      <label className="logs-control-label" htmlFor="logsFile">File</label>
+      <select id="logsFile" value={file} onChange={e => setFile(e.target.value)}>
+        {LOG_FILES.map(f => <option key={f} value={f}>{f}</option>)}
+      </select>
+      <label className="logs-control-label" htmlFor="logsTail">Tail</label>
+      <select id="logsTail" value={tail} onChange={e => setTail(Number(e.target.value))}>
+        {TAIL_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+      </select>
+      <label className="logs-control-label" htmlFor="logsSeverityFilter">Severity</label>
+      <select id="logsSeverityFilter" value={severity} onChange={e => setSeverity(e.target.value)}>
+        {SEVERITY_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+      </select>
+      <label className="logs-check-row">
+        <input id="logsAutoRefresh" type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
+        <span>Auto-refresh (5s)</span>
+      </label>
+      <label className="logs-check-row">
+        <input id="logsWrap" type="checkbox" checked={wrap} onChange={e => setWrap(e.target.checked)} />
+        <span>Wrap lines</span>
+      </label>
+      <button type="button" className="logs-copy" id="logsCopyAll" onClick={copyAll}>Copy all</button>
     </div>
   );
 }

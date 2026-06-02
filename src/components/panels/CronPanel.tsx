@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getCrons, runCronNow, deleteCron, createCron } from '../../api/endpoints';
 import { apiPost } from '../../api/client';
+import { usePanelStore } from '../../store/panelStore';
 import type { CronJob } from '../../types';
 
 export default function CronPanel() {
@@ -13,6 +14,8 @@ export default function CronPanel() {
   const [formDescription, setFormDescription] = useState('');
   const [formAgent, setFormAgent] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const setCronDetail = usePanelStore(s => s.setCronDetail);
+  const cronDetailId = usePanelStore(s => s.cronDetailId);
 
   const load = async () => {
     setLoading(true);
@@ -21,6 +24,18 @@ export default function CronPanel() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Listen for sidebar button events
+  useEffect(() => {
+    const hRefresh = () => load();
+    const hNew = () => setShowForm(true);
+    window.addEventListener('cron-refresh', hRefresh);
+    window.addEventListener('cron-new', hNew);
+    return () => {
+      window.removeEventListener('cron-refresh', hRefresh);
+      window.removeEventListener('cron-new', hNew);
+    };
+  }, []);
 
   const handleRun = async (id: string) => { await runCronNow(id); load(); };
   const handleDelete = async (id: string) => { await deleteCron(id); load(); };
@@ -52,10 +67,14 @@ export default function CronPanel() {
 
       {showForm && (
         <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <input autoFocus style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }} style={{ padding: '6px 10px', minHeight: 'auto' }} value={formName} onChange={e => setFormName(e.target.value)} placeholder="Job name..." />
-          <input style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }} style={{ padding: '6px 10px', minHeight: 'auto' }} value={formSchedule} onChange={e => setFormSchedule(e.target.value)} placeholder="Cron schedule (e.g. 0 9 * * *)" />
-          <input style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }} style={{ padding: '6px 10px', minHeight: 'auto' }} value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Description (optional)" />
-          <input style={{ background: "var(--input-bg)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", width: "100%" }} style={{ padding: '6px 10px', minHeight: 'auto' }} value={formAgent} onChange={e => setFormAgent(e.target.value)} placeholder="Agent name (optional)" />
+          <input autoFocus value={formName} onChange={e => setFormName(e.target.value)} placeholder="Job name..."
+            style={{ padding: '6px 10px', minHeight: 'auto', background: 'var(--input-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, outline: 'none', width: '100%' }} />
+          <input value={formSchedule} onChange={e => setFormSchedule(e.target.value)} placeholder="Cron schedule (e.g. 0 9 * * *)"
+            style={{ padding: '6px 10px', minHeight: 'auto', background: 'var(--input-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, outline: 'none', width: '100%' }} />
+          <input value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Description (optional)"
+            style={{ padding: '6px 10px', minHeight: 'auto', background: 'var(--input-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, outline: 'none', width: '100%' }} />
+          <input value={formAgent} onChange={e => setFormAgent(e.target.value)} placeholder="Agent name (optional)"
+            style={{ padding: '6px 10px', minHeight: 'auto', background: 'var(--input-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, outline: 'none', width: '100%' }} />
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="panel-icon-btn" onClick={handleSubmit} disabled={!formName.trim()}>{editingId ? 'Update' : 'Create'}</button>
             <button className="panel-icon-btn" onClick={resetForm}>Cancel</button>
@@ -64,12 +83,12 @@ export default function CronPanel() {
       )}
 
       {jobs.length === 0 ? (
-        <div style={{ padding: 12, color: "var(--muted)", fontSize: 12, textAlign: "center" }}>No cron jobs configured</div>
+        <div style={{ padding: 16, color: 'var(--muted)', fontSize: 12 }}>No scheduled jobs found.</div>
       ) : (
         <>
           {jobs.map(job => (
-            <div key={job.id} className="cron-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setExpandedId(expandedId === job.id ? null : job.id)}>
+            <div key={job.id} className={`cron-item${cronDetailId === job.id ? ' active' : ''}`} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => { setCronDetail(job.id); }}>
                 <div className="cron-item-info">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   <div>

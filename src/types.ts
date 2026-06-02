@@ -74,10 +74,23 @@ export interface CronJob {
   name: string;
   description?: string;
   schedule?: string;
+  schedule_display?: string;
   active?: boolean;
   next_run?: number;
+  next_run_at?: number;
   last_run?: number;
+  last_run_at?: number;
   agent?: string;
+  prompt?: string;
+  last_error?: string;
+  skills?: string[];
+  deliver?: string;
+  provider?: string;
+  model?: string;
+  profile?: string;
+  no_agent?: boolean;
+  script?: string;
+  toast_notifications?: boolean;
 }
 
 export interface Skill {
@@ -89,10 +102,19 @@ export interface Skill {
 
 export interface Profile {
   name: string;
-  active?: boolean;
-  gateway_status?: 'running' | 'stopped' | 'unknown';
-  model?: string;
+  path?: string;
+  is_default?: boolean;
+  is_active?: boolean;
+  gateway_running?: boolean;
+  model?: string | null;
+  provider?: string | null;
+  has_env?: boolean;
   skill_count?: number;
+}
+
+export interface ProfilesResponse {
+  profiles: Profile[];
+  active: string;
 }
 
 export interface SSEEvent {

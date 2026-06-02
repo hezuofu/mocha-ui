@@ -58,7 +58,7 @@ export default function FilePreview() {
           onKeyDown={e => { if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSave(); } }}
         />
       ) : isBinary ? (
-        <p className="text-muted" style={{ padding: '16px 0', color: 'var(--muted)', fontSize: 12 }}>Binary file — cannot preview</p>
+        <p style={{ color: "var(--muted)", fontSize: 12 }} style={{ padding: '16px 0', color: 'var(--muted)', fontSize: 12 }}>Binary file — cannot preview</p>
       ) : isImage ? (
         <div className="preview-img-wrap">
           <img src={downloadFileUrl(previewPath)} alt={fileName} className="preview-img" />

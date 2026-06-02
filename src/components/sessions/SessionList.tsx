@@ -32,7 +32,7 @@ export default function SessionList({ sessions, grouped, activeId, searchQuery }
     return (
       <div className="session-list-empty">
         <p>{t('no_conversations')}</p>
-        <p className="text-muted">{t('start_new')}</p>
+        <p style={{ color: "var(--muted)", fontSize: 12 }}>{t('start_new')}</p>
       </div>
     );
   }

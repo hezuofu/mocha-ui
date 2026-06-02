@@ -1,24 +1,50 @@
-import { useState, useEffect } from 'react';
-import { getProfiles, switchProfile, deleteProfile, createProfile } from '../../api/endpoints';
+import { useState, useEffect, useCallback } from 'react';
+import { getProfiles, switchProfile, deleteProfile } from '../../api/endpoints';
+import { usePanelStore } from '../../store/panelStore';
 import type { Profile } from '../../types';
-/* All icons replaced with original inline SVGs from static/icons.js */
+
+/* ── Inline SVG icons (from original static/icons.js) ── */
+
+const PlusIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+const ProfileIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+/* ── i18n fallbacks ── */
+const t = (key: string, fallback: string) => fallback;
 
 export default function ProfilesPanel() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [activeName, setActiveName] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState('');
+  const setProfileDetail = usePanelStore(s => s.setProfileDetail);
+  const profileDetailName = usePanelStore(s => s.profileDetailName);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getProfiles();
       setProfiles(data.profiles || []);
+      setActiveName(data.active || 'default');
     } catch { /* ignore */ }
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
+
+  // Listen for external reload triggers
+  useEffect(() => {
+    const h = () => load();
+    window.addEventListener('profiles-changed', h);
+    return () => window.removeEventListener('profiles-changed', h);
+  }, [load]);
 
   const handleSwitch = async (name: string) => {
     await switchProfile(name);
@@ -30,66 +56,85 @@ export default function ProfilesPanel() {
     load();
   };
 
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    await createProfile(newName.trim());
-    setNewName('');
-    setCreating(false);
-    load();
-  };
-
-  if (loading) return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 20, color: "var(--muted)" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></div>;
-
   return (
     <>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px 8px" }}>
-        <button className="panel-icon-btn" onClick={load}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
-        <button className="panel-icon-btn" onClick={() => setCreating(true)}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Profile
-        </button>
+      {/* ── panel-head with actions (matching original #panelProfiles) ── */}
+      <div className="panel-head">
+        <span>{t('tab_profiles', 'Profiles')}</span>
+        <div className="panel-head-actions">
+          <button className="panel-head-btn has-tooltip has-tooltip--bottom"
+            data-tooltip={t('new_profile', 'New profile')}
+            aria-label={t('new_profile', 'New profile')}
+            onClick={() => setProfileDetail(null, 'create')}
+          >
+            <PlusIcon />
+          </button>
+        </div>
       </div>
 
-      {creating && (
-        <div style={{ display: "flex", gap: 8, padding: "0 12px 8px" }}>
-          <input
-            autoFocus
-            value={newName}
-            onChange={e => setNewName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setCreating(false); }}
-            placeholder="Profile name..."
-          />
-          <button className="panel-icon-btn" onClick={handleCreate}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></button>
-        </div>
-      )}
-
-      <div style={{ flex: 1, overflow: "auto", padding: 8 }}>
-        {profiles.map(p => (
-          <div key={p.name} className={`profile-item ${p.active ? 'active' : ''}`}>
-            <div className="profile-item-info">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              <div>
-                <div className="profile-name">
-                  {p.name}
-                  {p.active && <span className="profile-active-badge">Active</span>}
+      {/* ── Profile list content ── */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 8 }} id="profilesPanel">
+        {loading ? (
+          <div style={{ padding: 12, color: 'var(--muted)', fontSize: 12 }}>
+            {t('loading', 'Loading...')}
+          </div>
+        ) : (
+          <>
+            {/* Help card — explains profiles vs workspaces */}
+            <div className="profile-card profile-help-card"
+              onClick={() => setProfileDetail('_help')}
+            >
+              <div className="profile-card-header">
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="profile-card-name">Profiles vs workspaces</div>
+                  <div className="profile-card-meta">Use profiles for how the agent works; use workspaces for what files it works on.</div>
                 </div>
-                {p.model && <div className="profile-model">{p.model}</div>}
               </div>
             </div>
-            <div className="profile-item-actions">
-              {!p.active && (
-                <button className="panel-icon-btn" onClick={() => handleSwitch(p.name)} title="Switch to profile">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-                </button>
-              )}
-              {p.name !== 'default' && (
-                <button className="panel-icon-btn danger" onClick={() => handleDelete(p.name)} title="Delete">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+
+            {profiles.length === 0 ? (
+              <div style={{ padding: 16, color: 'var(--muted)', fontSize: 12 }}>
+                {t('profiles_no_profiles', 'No profiles found.')}
+              </div>
+            ) : (
+              profiles.map(p => {
+                const isActive = p.name === activeName;
+                const meta: string[] = [];
+                if (p.model) meta.push(p.model.split('/').pop()!);
+                if (p.provider) meta.push(p.provider);
+                if (p.skill_count) meta.push(t('profile_skill_count', `${p.skill_count} skills`));
+
+                return (
+                  <div key={p.name}
+                    className={`profile-card${p.name === profileDetailName ? ' active' : ''}`}
+                    data-name={p.name}
+                    onClick={() => setProfileDetail(p.name)}
+                  >
+                    <div className="profile-card-header">
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className={`profile-card-name${isActive ? ' is-active' : ''}`}>
+                          <span className={`profile-opt-badge ${p.gateway_running ? 'running' : 'stopped'}`}
+                            title={p.gateway_running ? 'Gateway running' : 'Gateway stopped'}
+                          />
+                          {p.name}
+                          {p.is_default ? <span style={{ opacity: '.5' }}> (default)</span> : null}
+                          {isActive ? (
+                            <span style={{ color: 'var(--link)', fontSize: 10, fontWeight: 600, marginLeft: 6 }}>
+                              {t('profile_active', 'ACTIVE')}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="profile-card-meta">
+                          {meta.length ? meta.join(' · ') : t('profile_no_configuration', 'No configuration')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </>
+        )}
       </div>
     </>
   );

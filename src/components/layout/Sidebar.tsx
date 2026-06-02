@@ -12,7 +12,8 @@ import TodosPanel from '../panels/TodosPanel';
 import WorkspacesPanel from '../panels/WorkspacesPanel';
 import ProfilesPanel from '../panels/ProfilesPanel';
 import InsightsPanel from '../panels/InsightsPanel';
-import LogsPanel from '../panels/LogsPanel';
+import LogsPanel, { LogsControls } from '../panels/LogsPanel';
+import { useLogsStore } from '../../store/logsStore';
 
 interface SidebarProps {
   activePanel: PanelId;
@@ -146,20 +147,35 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
         <div className="panel-head">
           <span>{t('scheduled_jobs')}</span>
           <div className="panel-head-actions">
-            <button className="panel-head-btn" id="cronRefreshBtn" onClick={() => { /* CronPanel will handle its own refresh */ }} title="Refresh job list" aria-label="Refresh job list"><RefreshIcon /></button>
-            <button className="panel-head-btn" id="cronNewBtn" onClick={() => { /* Trigger new job form */ }} title="New job" aria-label="New job"><PlusIcon /></button>
+            <button className="panel-head-btn has-tooltip has-tooltip--bottom" id="cronRefreshBtn" onClick={() => window.dispatchEvent(new CustomEvent('cron-refresh'))} data-tooltip="Refresh job list" aria-label="Refresh job list"><RefreshIcon /></button>
+            <button className="panel-head-btn has-tooltip has-tooltip--bottom" id="cronNewBtn" onClick={() => window.dispatchEvent(new CustomEvent('cron-new'))} data-tooltip="New job" aria-label="New job"><PlusIcon /></button>
           </div>
         </div>
-        <div className="detail-alert cron-gateway-notice" id="cronGatewayNotice" style={{ display: 'none' }}>
+        <div className="detail-alert cron-gateway-notice" id="cronGatewayNotice">
           <div className="detail-alert-title">Gateway not configured</div>
-          <p>The cron scheduler requires a gateway connection. Check your Hermes configuration.</p>
+          <p>In Hermes WebUI, scheduled jobs require the Hermes gateway daemon. If this is a single-container Docker install, jobs can be created and run manually here, but scheduled ticks need a gateway container or `hermes gateway` running outside the WebUI.</p>
+          <p><a href="https://github.com/nesquena/hermes-webui/blob/master/docs/docker.md#scheduled-jobs-and-the-gateway-daemon" target="_blank" rel="noopener noreferrer">How to enable scheduled jobs in Docker ↗</a></p>
         </div>
         <div className="cron-list" id="cronList"><CronPanel /></div>
       </div>
 
       {/* ── Kanban panel (id=panelKanban) ── */}
       <div className={`panel-view${activePanel === 'kanban' ? ' active' : ''}`} id="panelKanban">
-        <div className="panel-head"><span>{t('tab_kanban')}</span></div>
+        <div className="panel-head">
+          <span>{t('tab_kanban')}</span>
+          <div className="panel-head-actions">
+            <button className="panel-head-btn has-tooltip has-tooltip--bottom" id="kanbanNewTaskBtn"
+              data-tooltip="New task" aria-label="New task"
+              onClick={() => { document.getElementById('kanbanNewTaskTitle')?.focus(); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button className="panel-head-btn has-tooltip has-tooltip--bottom" id="kanbanRefreshBtn"
+              data-tooltip="Refresh" aria-label="Refresh"
+              onClick={() => window.dispatchEvent(new CustomEvent('kanban-refresh'))}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+          </div>
+        </div>
         <KanbanPanel />
       </div>
 
@@ -199,16 +215,22 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
 
       {/* ── Profiles panel (id=panelProfiles) ── */}
       <div className={`panel-view${activePanel === 'profiles' ? ' active' : ''}`} id="panelProfiles">
-        <div className="panel-head">
-          <span>{t('tab_profiles')}</span>
-        </div>
         <ProfilesPanel />
       </div>
 
       {/* ── Logs panel (id=panelLogs) ── */}
       <div className={`panel-view${activePanel === 'logs' ? ' active' : ''}`} id="panelLogs">
-        <div className="panel-head"><span>{t('tab_logs')}</span></div>
-        <LogsPanel sidebar />
+        <div className="panel-head">
+          <span>{t('tab_logs')}</span>
+          <div className="panel-head-actions">
+            <button className="panel-head-btn has-tooltip has-tooltip--bottom" id="logsRefreshBtn"
+              onClick={() => useLogsStore.getState().refresh()}
+              data-tooltip="Refresh" aria-label="Refresh">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+          </div>
+        </div>
+        <LogsControls />
       </div>
 
       {/* ── Settings panel (id=panelSettings) — menu in sidebar, content in main area */}

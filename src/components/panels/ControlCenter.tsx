@@ -12,7 +12,7 @@ const PANEL_CONFIG: Record<string, { icon: React.ReactNode; label: string; compo
   conversation: {
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
     label: 'Conversations',
-    component: <div className="panel-placeholder">Select a conversation</div>,
+    component: <div style={{ padding: 16, color: "var(--muted)", fontSize: 12, textAlign: "center" }}>Select a conversation</div>,
   },
   settings: {
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>,
@@ -52,17 +52,17 @@ const PANEL_CONFIG: Record<string, { icon: React.ReactNode; label: string; compo
   todos: {
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
     label: 'Todos',
-    component: <div className="panel-placeholder">No tasks yet</div>,
+    component: <div style={{ padding: 16, color: "var(--muted)", fontSize: 12, textAlign: "center" }}>No tasks yet</div>,
   },
   spaces: {
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
     label: 'Spaces',
-    component: <div className="panel-placeholder">No spaces configured</div>,
+    component: <div style={{ padding: 16, color: "var(--muted)", fontSize: 12, textAlign: "center" }}>No spaces configured</div>,
   },
   providers: {
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>,
     label: 'Providers',
-    component: <div className="panel-placeholder">No providers configured</div>,
+    component: <div style={{ padding: 16, color: "var(--muted)", fontSize: 12, textAlign: "center" }}>No providers configured</div>,
   },
 };
 

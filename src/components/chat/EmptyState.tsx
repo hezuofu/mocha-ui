@@ -5,7 +5,7 @@ export default function EmptyState() {
         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
       </div>
       <h1>Hermes WebUI</h1>
-      <p className="text-muted">
+      <p style={{ color: "var(--muted)", fontSize: 12 }}>
         Your AI agent workspace. Start a conversation or select an existing one from the sidebar.
       </p>
       <div className="empty-state-hints">

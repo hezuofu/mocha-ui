@@ -65,7 +65,7 @@ export default function LoginPage() {
         <div className="login-header">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <h1>Hermes</h1>
-          <p className="text-muted">Enter your password to continue</p>
+          <p style={{ color: "var(--muted)", fontSize: 12 }}>Enter your password to continue</p>
         </div>
 
         <form onSubmit={handleLogin} className="login-form">

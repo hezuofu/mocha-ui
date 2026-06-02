@@ -1,112 +1,362 @@
 import { useSettingsStore } from '../../store/settingsStore';
-import { useI18n } from '../../i18n';
 import type { Settings } from '../../types';
+import { useState, useEffect } from 'react';
+import { apiGet } from '../../api/client';
 
-function Toggle({ label, desc, checked, onChange }: { label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16, flexShrink: 0 }} />
-      <div style={{ minWidth: 0 }}>
-        <span style={{ fontSize: 13, color: 'var(--text)' }}>{label}</span>
-        {desc && <span style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginTop: 1 }}>{desc}</span>}
-      </div>
-    </label>
-  );
-}
+interface ModelGroup { provider?: string; provider_id?: string; models?: { id: string; label?: string }[] }
 
-function Select({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void }) {
-  return (
-    <div className="settings-field">
-      <label style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4, display: 'block' }}>{label}</label>
-      <select value={value} onChange={e => onChange(e.target.value)}
-        style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg)', color: 'var(--text)', fontSize: 13, outline: 'none' }}>
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  );
-}
-
-function NumberInput({ label, value, min, max, onChange }: { label: string; value: number; min?: number; max?: number; onChange: (v: number) => void }) {
-  return (
-    <div className="settings-field">
-      <label style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4, display: 'block' }}>{label}</label>
-      <input type="number" value={value} min={min} max={max}
-        onChange={e => onChange(Number(e.target.value))}
-        style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg)', color: 'var(--text)', fontSize: 13, outline: 'none' }} />
-    </div>
-  );
-}
+const AUX_TASKS = [
+  { key: 'vision', label: 'Vision', desc: 'image/screenshot analysis' },
+  { key: 'compression', label: 'Compression', desc: 'context summarization' },
+  { key: 'web_extract', label: 'Web extract', desc: 'web page summarization' },
+  { key: 'session_search', label: 'Session search', desc: 'past-conversation recall' },
+  { key: 'approval', label: 'Approval', desc: 'smart command approval' },
+  { key: 'mcp', label: 'MCP', desc: 'MCP tool reasoning' },
+  { key: 'title_generation', label: 'Title generation', desc: 'session titles' },
+  { key: 'skills_hub', label: 'Skills hub', desc: 'skills search/install' },
+];
 
 export default function PreferencesPanel() {
   const s = useSettingsStore();
   const save = useSettingsStore(st => st.saveSettings);
-  const { locale, setLocale } = useI18n();
+  const [models, setModels] = useState<{ id: string; label: string }[][]>([[], []]);
+
+  useEffect(() => {
+    apiGet<{ groups?: ModelGroup[] }>('/api/models').then(data => {
+      const providers: string[] = [];
+      const modelOpts: { id: string; label: string }[] = [];
+      const groups = data?.groups || [];
+      for (const g of groups) {
+        if (g.provider_id) providers.push(g.provider_id);
+        for (const m of (g.models || [])) {
+          if (m.id) modelOpts.push({ id: m.id, label: m.label || m.id });
+        }
+      }
+      setModels([providers.map(p => ({ id: p, label: p })), modelOpts]);
+    }).catch(() => {});
+  }, []);
+
+  const [providerOpts, modelOpts] = models;
+
+  const renderModelSelect = (value: string | undefined, onChange: (v: string) => void, id: string) => (
+    <select id={id} value={value || ''} onChange={e => onChange(e.target.value)}
+      style={{ width: '100%', padding: '6px 8px', background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 6, fontSize: 12, boxSizing: 'border-box' }}>
+      <option value="">auto (use provider default)</option>
+      {modelOpts.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+    </select>
+  );
+
+  const renderProviderSelect = (value: string | undefined, onChange: (v: string) => void, id: string) => (
+    <select id={id} value={value || 'auto'} onChange={e => onChange(e.target.value)}
+      style={{ width: '100%', padding: '6px 8px', background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 6, fontSize: 12, boxSizing: 'border-box' }}>
+      <option value="auto">auto (use main model)</option>
+      {providerOpts.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+    </select>
+  );
+
+  const auxSettings = (s as unknown as Record<string, unknown>).aux_models as Record<string, { provider?: string; model?: string }> || {};
 
   return (
-    <div className="settings-content" style={{ overflow: 'auto', flex: 1 }}>
-      <section className="settings-section">
-        <h4>Language</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-          {['en', 'zh'].map(lang => (
-            <button key={lang} onClick={() => setLocale(lang)}
-              style={{
-                padding: '10px 12px', borderRadius: 8, border: locale === lang ? '2px solid var(--accent)' : '2px solid var(--border)',
-                background: locale === lang ? 'var(--accent-bg)' : 'var(--surface-subtle)', cursor: 'pointer',
-                fontSize: 13, fontWeight: 600, color: locale === lang ? 'var(--accent-text)' : 'var(--text)',
-              }}>{lang === 'en' ? 'English' : '中文'}</button>
-          ))}
+    <>
+      <div className="settings-section-head">
+        <div>
+          <div className="settings-section-title">Preferences</div>
+          <div className="settings-section-meta">Defaults and UI behavior for Hermes Web UI.</div>
         </div>
-      </section>
-      <section className="settings-section">
-        <h4>Chat Behavior</h4>
-        <Select label="Send Key" value={s.send_key || 'enter'}
-          options={[{ value: 'enter', label: 'Enter' }, { value: 'ctrl_enter', label: 'Ctrl + Enter' }]}
-          onChange={v => save({ send_key: v as 'enter' | 'ctrl_enter' })} />
-        <Select label="Busy Input Mode" value={s.busy_input_mode || 'queue'}
-          options={[{ value: 'queue', label: 'Queue' }, { value: 'interrupt', label: 'Interrupt' }, { value: 'steer', label: 'Steer' }]}
-          onChange={v => save({ busy_input_mode: v as Settings['busy_input_mode'] })} />
-        <Select label="Sidebar Density" value={(s as unknown as Record<string, unknown>).sidebar_density as string || 'compact'}
-          options={[{ value: 'compact', label: 'Compact' }, { value: 'detailed', label: 'Detailed' }]}
-          onChange={v => save({ ...s, sidebar_density: v } as Partial<Settings>)} />
-        <NumberInput label="Pinned Sessions Limit" value={(s as unknown as Record<string, unknown>).pinned_sessions_limit as number || 3}
-          min={0} max={20} onChange={v => save({ ...s, pinned_sessions_limit: v } as Partial<Settings>)} />
-      </section>
+      </div>
 
-      <section className="settings-section">
-        <h4>Display</h4>
-        <Toggle label="Show Token Usage" checked={s.token_display || false} onChange={v => save({ token_display: v })} />
-        <Toggle label="Show TPS (Tokens Per Second)" desc="Display streaming speed inline" checked={(s as unknown as Record<string, unknown>).show_tps as boolean || false} onChange={v => save({ ...s, show_tps: v } as Partial<Settings>)} />
-        <Toggle label="Show Quota Chip" desc="Provider API quota usage in composer" checked={(s as unknown as Record<string, unknown>).show_quota_chip as boolean || false} onChange={v => save({ ...s, show_quota_chip: v } as Partial<Settings>)} />
-        <Toggle label="Fade Text Effect" desc="Smooth fade-in for streamed tokens" checked={(s as unknown as Record<string, unknown>).fade_text_effect as boolean || false} onChange={v => save({ ...s, fade_text_effect: v } as Partial<Settings>)} />
-        <Toggle label="Show Thinking" desc="Display agent reasoning blocks" checked={(s as unknown as Record<string, unknown>).show_thinking as boolean !== false} onChange={v => save({ ...s, show_thinking: v } as Partial<Settings>)} />
-        <Toggle label="Compact Tool Calling" desc="Simplified tool call display" checked={(s as unknown as Record<string, unknown>).simplified_tool_calling as boolean || false} onChange={v => save({ ...s, simplified_tool_calling: v } as Partial<Settings>)} />
-        <Toggle label="Hide Empty State Suggestions" checked={(s as unknown as Record<string, unknown>).hide_empty_state_suggestions as boolean || false} onChange={v => save({ ...s, hide_empty_state_suggestions: v } as Partial<Settings>)} />
-        <Toggle label="Session Jump Buttons" desc="Show jump-to-start/end buttons" checked={(s as unknown as Record<string, unknown>).session_jump_buttons as boolean || false} onChange={v => save({ ...s, session_jump_buttons: v } as Partial<Settings>)} />
-        <Toggle label="Session Endless Scroll" desc="Auto-load older messages on scroll" checked={(s as unknown as Record<string, unknown>).session_endless_scroll as boolean || false} onChange={v => save({ ...s, session_endless_scroll: v } as Partial<Settings>)} />
-        <Toggle label="RTL Layout" desc="Right-to-left chat content" checked={(s as unknown as Record<string, unknown>).rtl as boolean || false} onChange={v => save({ ...s, rtl: v } as Partial<Settings>)} />
-      </section>
+      {/* ── Default Model ── */}
+      <div className="settings-field">
+        <label htmlFor="settingsModel">Default Model</label>
+        <select id="settingsModel" value={s.default_model || ''}
+          onChange={e => save({ default_model: e.target.value })}
+          style={{ width: '100%', padding: 8, background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 6 }}>
+          <option value="">Inherit from provider / active profile</option>
+          {modelOpts.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+        </select>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Used for new conversations. Existing conversations keep their selected model.</div>
+      </div>
 
-      <section className="settings-section">
-        <h4>Sessions & Data</h4>
-        <Toggle label="Show CLI Sessions" checked={s.show_cli_sessions !== false} onChange={v => save({ show_cli_sessions: v })} />
-        <Toggle label="Show Previous Messaging Sessions" checked={(s as unknown as Record<string, unknown>).show_previous_messaging_sessions as boolean || false} onChange={v => save({ ...s, show_previous_messaging_sessions: v } as Partial<Settings>)} />
-        <Toggle label="API Redact Enabled" desc="Redact sensitive API data in debug views" checked={(s as unknown as Record<string, unknown>).api_redact_enabled as boolean || false} onChange={v => save({ ...s, api_redact_enabled: v } as Partial<Settings>)} />
-      </section>
+      {/* ── Auxiliary Models ── */}
+      <div className="settings-field">
+        <label>Auxiliary Models</label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>Side-task routing for vision, compression, title generation, etc. "Auto" uses your main chat model.</div>
+        <div id="auxModelsContainer">
+          {AUX_TASKS.map(task => {
+            const cfg = auxSettings[task.key] || {};
+            return (
+              <div key={task.key} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', lineHeight: 1.3 }}>
+                  {task.label}
+                  <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 400 }}>{task.desc}</div>
+                </div>
+                {renderProviderSelect(cfg.provider, v => {
+                  const updated = { ...auxSettings, [task.key]: { ...cfg, provider: v === 'auto' ? '' : v } };
+                  save({ ...s, aux_models: updated } as Partial<Settings>);
+                }, `aux-prov-${task.key}`)}
+                {renderModelSelect(cfg.model, v => {
+                  const updated = { ...auxSettings, [task.key]: { ...cfg, model: v } };
+                  save({ ...s, aux_models: updated } as Partial<Settings>);
+                }, `aux-model-${task.key}`)}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-      <section className="settings-section">
-        <h4>Updates & Sync</h4>
-        <Toggle label="Check for Updates" checked={(s as unknown as Record<string, unknown>).check_for_updates as boolean !== false} onChange={v => save({ ...s, check_for_updates: v } as Partial<Settings>)} />
-        <Toggle label="Ignore Agent Updates" desc="Skip agent version notifications" checked={(s as unknown as Record<string, unknown>).ignore_agent_updates as boolean || false} onChange={v => save({ ...s, ignore_agent_updates: v } as Partial<Settings>)} />
-        <Toggle label="What's New Summary" desc="Show changelog highlights on update" checked={(s as unknown as Record<string, unknown>).whats_new_summary_enabled as boolean || false} onChange={v => save({ ...s, whats_new_summary_enabled: v } as Partial<Settings>)} />
-        <Toggle label="Sync to Insights" checked={(s as unknown as Record<string, unknown>).sync_to_insights as boolean || false} onChange={v => save({ ...s, sync_to_insights: v } as Partial<Settings>)} />
-        <Toggle label="Auto Title Refresh" desc="Auto-generate session titles" checked={String((s as unknown as Record<string, unknown>).auto_title_refresh_every || '0') !== '0'} onChange={v => save({ ...s, auto_title_refresh_every: v ? '10' : '0' } as Partial<Settings>)} />
-      </section>
+      {/* ── Hide new-chat suggestions ── */}
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, hide_empty_state_suggestions: !(s as any).hide_empty_state_suggestions } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).hide_empty_state_suggestions} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Hide new-chat suggestions</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Removes the grid of example prompts shown on the empty chat screen.</div>
+      </div>
 
-      <section className="settings-section">
-        <h4>Sound & Notifications</h4>
-        <Toggle label="Sound Enabled" desc="Play notification sounds" checked={(s as unknown as Record<string, unknown>).sound_enabled as boolean || false} onChange={v => save({ ...s, sound_enabled: v } as Partial<Settings>)} />
-        <Toggle label="Browser Notifications" checked={(s as unknown as Record<string, unknown>).notifications_enabled as boolean || false} onChange={v => save({ ...s, notifications_enabled: v } as Partial<Settings>)} />
-      </section>
-    </div>
+      {/* ── Send Key ── */}
+      <div className="settings-field">
+        <label htmlFor="settingsSendKey">Send Key</label>
+        <select id="settingsSendKey" value={s.send_key || 'enter'}
+          onChange={e => save({ send_key: e.target.value as 'enter' | 'ctrl_enter' })}
+          style={{ width: '100%', padding: 8, background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 6, fontSize: 13 }}>
+          <option value="enter">Enter</option>
+          <option value="ctrl_enter">Ctrl + Enter</option>
+        </select>
+      </div>
+
+      {/* ── Language ── */}
+      <div className="settings-field">
+        <label htmlFor="settingsLanguage">Language</label>
+        <select id="settingsLanguage" value={s.language || 'en'}
+          onChange={e => save({ language: e.target.value } as Partial<Settings>)}
+          style={{ width: '100%', padding: 8, background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 6, fontSize: 13 }}>
+          <option value="en">English</option>
+          <option value="zh">中文</option>
+        </select>
+      </div>
+
+      {/* ── RTL ── */}
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, rtl: !(s as any).rtl } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).rtl} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Right-to-left chat layout</span>
+        </label>
+      </div>
+
+      {/* ── Sound & Voice ── */}
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, sound_enabled: !(s as any).sound_enabled } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).sound_enabled} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Notification sound</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Play a brief chime when a server push notification is received.</div>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, tts_enabled: !(s as any).tts_enabled } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).tts_enabled} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Text-to-Speech for responses</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, auto_read_aloud: !(s as any).auto_read_aloud } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).auto_read_aloud} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Auto-read responses aloud</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, hands_free_voice: !(s as any).hands_free_voice } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).hands_free_voice} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Hands-free voice mode button</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, voice_raw_audio: !(s as any).voice_raw_audio } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).voice_raw_audio} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Send raw audio instead of transcribing</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label>Voice</label>
+        <select value={(s as any).voice || ''} onChange={e => save({ ...s, voice: e.target.value } as Partial<Settings>)}
+          style={{ width: '100%', padding: 8, background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 6, fontSize: 13 }}>
+          <option value="">Default</option>
+        </select>
+      </div>
+
+      <div className="settings-field">
+        <label htmlFor="settingsSpeechRate">Speech rate</label>
+        <input type="range" id="settingsSpeechRate" min="0.5" max="2" step="0.1" value={(s as any).speech_rate || 1}
+          onChange={e => save({ ...s, speech_rate: parseFloat(e.target.value) } as Partial<Settings>)}
+          style={{ width: '100%', accentColor: 'var(--accent)' }} />
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{(s as any).speech_rate || 1}x</span>
+      </div>
+
+      <div className="settings-field">
+        <label htmlFor="settingsSpeechPitch">Speech pitch</label>
+        <input type="range" id="settingsSpeechPitch" min="0.5" max="2" step="0.1" value={(s as any).speech_pitch || 1}
+          onChange={e => save({ ...s, speech_pitch: parseFloat(e.target.value) } as Partial<Settings>)}
+          style={{ width: '100%', accentColor: 'var(--accent)' }} />
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{(s as any).speech_pitch || 1}x</span>
+      </div>
+
+      {/* ── Browser notifications ── */}
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, notifications_enabled: !(s as any).notifications_enabled } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).notifications_enabled} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Browser notifications</span>
+        </label>
+      </div>
+
+      {/* ── Display ── */}
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ token_display: !s.token_display })}>
+          <input type="checkbox" checked={s.token_display || false} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Show token usage</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, show_quota_chip: !(s as any).show_quota_chip } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).show_quota_chip} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Show provider quota chip in composer</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, show_tps: !(s as any).show_tps } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).show_tps} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Show token speed (TPS)</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, fade_text_effect: !(s as any).fade_text_effect } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).fade_text_effect} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Fade text effect</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, simplified_tool_calling: !(s as any).simplified_tool_calling } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).simplified_tool_calling} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Compact tool activity</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, api_redact_enabled: !(s as any).api_redact_enabled } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).api_redact_enabled} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Redact sensitive data in API responses</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label htmlFor="settingsSidebarDensity">Sidebar density</label>
+        <select id="settingsSidebarDensity" value={(s as any).sidebar_density || 'compact'}
+          onChange={e => save({ ...s, sidebar_density: e.target.value } as Partial<Settings>)}
+          style={{ width: '100%', padding: 8, background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 6, fontSize: 13 }}>
+          <option value="compact">Compact</option>
+          <option value="detailed">Detailed</option>
+        </select>
+      </div>
+
+      <div className="settings-field">
+        <label htmlFor="settingsPinnedLimit">Pinned conversations limit</label>
+        <input type="number" id="settingsPinnedLimit" min={0} max={20} value={(s as any).pinned_sessions_limit || 3}
+          onChange={e => save({ ...s, pinned_sessions_limit: Number(e.target.value) } as Partial<Settings>)}
+          style={{ width: '100%', padding: 8, background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 6, fontSize: 13 }} />
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" id="settingsAutoTitleRefresh" checked={String((s as any).auto_title_refresh_every || '0') !== '0'} onChange={e => save({ ...s, auto_title_refresh_every: e.target.checked ? '10' : '0' } as Partial<Settings>)}
+            style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Adaptive title refresh</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Auto-generate session titles from conversation content (every 10 messages).</div>
+      </div>
+
+      {/* ── Busy Input Mode ── */}
+      <div className="settings-field">
+        <label htmlFor="settingsBusyMode">Busy input mode</label>
+        <select id="settingsBusyMode" value={s.busy_input_mode || 'queue'}
+          onChange={e => save({ busy_input_mode: e.target.value as Settings['busy_input_mode'] })}
+          style={{ width: '100%', padding: 8, background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 6, fontSize: 13 }}>
+          <option value="queue">Queue</option>
+          <option value="interrupt">Interrupt</option>
+          <option value="steer">Steer</option>
+        </select>
+      </div>
+
+      {/* ── Sessions ── */}
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ show_cli_sessions: s.show_cli_sessions === false ? true : false })}>
+          <input type="checkbox" checked={s.show_cli_sessions !== false} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Show non-WebUI sessions</span>
+        </label>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, show_previous_messaging_sessions: !(s as any).show_previous_messaging_sessions } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).show_previous_messaging_sessions} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Show previous messaging sessions</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Show older Discord, Telegram, Slack, and Weixin sessions that were replaced by reset or compression.</div>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, sync_to_insights: !(s as any).sync_to_insights } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).sync_to_insights} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Sync to insights</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Mirrors WebUI token usage to state.db so hermes /insights includes browser session data. Off by default.</div>
+      </div>
+
+      {/* ── Updates ── */}
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, check_for_updates: !(s as any).check_for_updates } as Partial<Settings>)}>
+          <input type="checkbox" checked={(s as any).check_for_updates !== false} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Check for updates</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Show a banner when newer versions of the WebUI or Agent are available. Runs a background git fetch periodically.</div>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, ignore_agent_updates: !(s as any).ignore_agent_updates } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).ignore_agent_updates} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Ignore Agent updates</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Keep WebUI update checks on, but hide Agent update notices and skip Agent update fetches.</div>
+      </div>
+
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => save({ ...s, whats_new_summary_enabled: !(s as any).whats_new_summary_enabled } as Partial<Settings>)}>
+          <input type="checkbox" checked={!!(s as any).whats_new_summary_enabled} readOnly style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+          <span>Summarize What's New with AI</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Changes the What's New action from opening the raw diff first to generating a short, human-readable summary.</div>
+      </div>
+
+      {/* ── Bot Name ── */}
+      <div className="settings-field">
+        <label htmlFor="settingsBotName">Default assistant name</label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Used for the default profile only. Other profiles use their own profile names.</div>
+        <input type="text" id="settingsBotName" placeholder="Hermes" maxLength={64} value={s.bot_name || ''}
+          onChange={e => save({ bot_name: e.target.value })}
+          style={{ width: '100%', padding: 8, background: 'var(--code-bg)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 6, fontSize: 13 }} />
+      </div>
+
+      {/* ── Save ── */}
+      <button className="sm-btn" onClick={() => { /* auto-save */ }}
+        style={{ marginTop: 12, width: '100%', padding: '9px 16px', fontWeight: 600, fontSize: 13, background: 'var(--accent)', color: '#fff', border: '1px solid var(--accent)', borderRadius: 8 }}>
+        Save Settings
+      </button>
+      <div className="settings-autosave-status" id="settingsPreferencesAutosaveStatus" aria-live="polite"></div>
+    </>
   );
 }

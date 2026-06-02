@@ -20,6 +20,11 @@ import SystemPanel from '../panels/SystemPanel';
 import PreferencesPanel from '../panels/PreferencesPanel';
 import ProvidersPanel from '../panels/ProvidersPanel';
 import PluginsPanel from '../panels/PluginsPanel';
+import ProfileDetailPanel from '../panels/ProfileDetailPanel';
+import TaskDetailPanel from '../panels/TaskDetailPanel';
+import KanbanBoardPanel from '../panels/KanbanBoardPanel';
+import SkillDetailPanel from '../panels/SkillDetailPanel';
+import { useLogsStore } from '../../store/logsStore';
 
 export default function MainArea() {
   const { t } = useI18n();
@@ -131,11 +136,9 @@ export default function MainArea() {
 
       {/* == LOGS == */}
       <div id="mainLogs" className="main-view">
-        <div className="main-view-header">
-          <div><div className="main-view-title">Logs</div><div className="logs-status" id="logsStatus">Choose a log file to view recent lines.</div></div>
-        </div>
-        <div className="main-view-body logs-main-body" style={{ padding: '18px 24px' }}>
-          <div className="main-view-content logs-content" style={{ maxWidth: 'none' }}><LogsPanel /></div>
+        <LogsHeader />
+        <div className="main-view-body logs-main-body">
+          <div className="main-view-content logs-content"><LogsPanel /></div>
         </div>
       </div>
 
@@ -152,14 +155,22 @@ export default function MainArea() {
       </div>
 
       {/* == OTHER main-view shells (CSS hides them by default) == */}
-      <div id="mainTasks" className="main-view" />
-      <div id="mainKanban" className="main-view" />
-      <div id="mainSkills" className="main-view" />
+      <div id="mainTasks" className="main-view">
+        <TaskDetailPanel />
+      </div>
+      <div id="mainKanban" className="main-view">
+        <KanbanBoardPanel />
+      </div>
+      <div id="mainSkills" className="main-view">
+        <SkillDetailPanel />
+      </div>
       <div id="mainMemory" className="main-view">
         <MemoryPanel />
       </div>
       <div id="mainWorkspaces" className="main-view" />
-      <div id="mainProfiles" className="main-view" />
+      <div id="mainProfiles" className="main-view">
+        <ProfileDetailPanel />
+      </div>
     </main>
   );
 }
@@ -251,7 +262,7 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
   useEffect(() => { if (!cr.current) return; const P = (window as any).Prism; if (P?.highlightElement) try { P.highlightElement(cr.current); } catch {} }, [code, language]);
   return (
     <div className="code-block-wrap"><div className="code-block-header"><span className="code-block-lang">{language || 'code'}</span>
-      <button className="btn-icon-xs" onClick={async () => { await navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); }} title="Copy">{copied ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}</button>
+      <button className="panel-icon-btn" onClick={async () => { await navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); }} title="Copy">{copied ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}</button>
     </div><pre className="code-block"><code ref={cr} className={language ? `language-${language}` : ''}>{code}</code></pre></div>
   );
 }
@@ -266,7 +277,7 @@ function InlineMarkdown({ text }: { text: string }) {
 
 function ActivityGroup({ toolCalls }: { toolCalls: any[] }) {
   const [exp, setExp] = useState(false); if (!toolCalls.length) return null;
-  return <div className="activity-group"><div className="activity-header" onClick={() => setExp(!exp)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Activity: {toolCalls.length} tool{toolCalls.length!==1?'s':''}</span><button className="btn-icon-xs" style={{marginLeft:'auto'}}>{exp?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>}</button></div>{exp&&<div className="activity-body">{toolCalls.map((tc:any)=><ToolCallCard key={tc.id} toolCall={tc}/>)}</div>}</div>;
+  return <div className="activity-group"><div className="activity-header" onClick={() => setExp(!exp)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Activity: {toolCalls.length} tool{toolCalls.length!==1?'s':''}</span><button className="panel-icon-btn" style={{marginLeft:'auto'}}>{exp?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>}</button></div>{exp&&<div className="activity-body">{toolCalls.map((tc:any)=><ToolCallCard key={tc.id} toolCall={tc}/>)}</div>}</div>;
 }
 
 function ApprovalBar({ count }: { count: number }) {
@@ -279,4 +290,22 @@ function ApprovalBar({ count }: { count: number }) {
 
 function ClarifyCard({ question, choices, input, onInputChange, onChoice, onSubmit, onDismiss }: { question: string; choices: string[]; input: string; onInputChange: (v:string)=>void; onChoice: (c:string)=>void; onSubmit: ()=>void; onDismiss: ()=>void }) {
   return <div className="approval-card visible"><div className="approval-inner"><div style={{marginBottom:10,display:'flex',alignItems:'center',gap:8}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Clarification needed</span></div>{question&&<div style={{fontSize:14,color:'var(--text)',lineHeight:1.7,marginBottom:12}}>{question}</div>}{choices.length>0&&<div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:12}}>{choices.map((c,i)=><button key={i} onClick={()=>onChoice(c)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'11px 14px',borderRadius:12,fontSize:13,fontWeight:600,cursor:'pointer',textAlign:'left',border:'1px solid var(--accent-bg-strong)',background:'var(--accent-bg)',color:'var(--accent-text)'}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',minWidth:24,height:24,borderRadius:999,background:'var(--accent-bg-strong)',fontSize:11,fontWeight:800}}>{i+1}</span>{c}</button>)}</div>}<div style={{display:'flex',gap:8}}><input value={input} onChange={e=>onInputChange(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')onSubmit()}} placeholder="Type your response..." style={{flex:1,padding:'10px 12px',border:'1px solid var(--border)',borderRadius:8,background:'var(--bg)',color:'var(--text)',fontSize:13,outline:'none'}}/><button onClick={onSubmit} style={{padding:'10px 16px',borderRadius:8,border:'none',background:'var(--accent)',color:'#000',cursor:'pointer',fontSize:13,fontWeight:600}}>Send</button><button onClick={onDismiss} style={{padding:8,border:'none',background:'transparent',color:'var(--muted)',cursor:'pointer'}} title="Dismiss"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div></div></div>;
+}
+
+/* ── LogsHeader: main-view-header with dynamic status from store ── */
+function LogsHeader() {
+  const status = useLogsStore(s => s.status);
+  const logs = useLogsStore(s => s.logs);
+  const copyAll = async () => { await navigator.clipboard.writeText(logs.join('\n')); };
+  return (
+    <div className="main-view-header">
+      <div>
+        <div className="main-view-title">Logs</div>
+        <div className="logs-status">{status}</div>
+      </div>
+      <div className="main-view-actions">
+        <button type="button" className="logs-copy compact" onClick={copyAll}>Copy all</button>
+      </div>
+    </div>
+  );
 }

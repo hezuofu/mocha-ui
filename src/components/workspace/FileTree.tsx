@@ -80,7 +80,7 @@ export default function FileTree() {
   return (
     <div className="file-tree" id="fileTree">
       {/* Toolbar — matches original panel-header actions; styled with panel-icon-btn */}
-      <div className="file-tree-toolbar" style={{ display: 'none' }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 0 6px 0" }} style={{ display: 'none' }}>
         {currentPath !== '.' && (
           <button className="panel-icon-btn" onClick={async () => {
             const parts = currentPath.split('/'); parts.pop();
@@ -90,7 +90,7 @@ export default function FileTree() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
         )}
-        <span className="file-tree-path" style={{ flex: 1, fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{currentPath}</span>
+        <span style={{ flex: 1, fontSize: 11, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }} style={{ flex: 1, fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{currentPath}</span>
         <button className="panel-icon-btn" title="New file" onClick={() => setNewItem({ parent: currentPath, type: 'file' })}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
@@ -100,7 +100,7 @@ export default function FileTree() {
       </div>
 
       {newItem && (
-        <div className="file-tree-new-item" style={{ padding: '2px 0 4px 0' }}>
+        <div style={{ padding: "2px 0 4px 0" }} style={{ padding: '2px 0 4px 0' }}>
           <input autoFocus className="file-rename-input" value={newName}
             onChange={e => setNewName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') { setNewItem(null); setNewName(''); } }}
