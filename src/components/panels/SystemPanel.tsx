@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getVersion, getAgentHealth, logout } from '../../api/endpoints';
+import { getVersion, logout } from '../../api/endpoints';
 import { apiGet, apiPost } from '../../api/client';
 
 export default function SystemPanel() {
@@ -20,8 +20,7 @@ export default function SystemPanel() {
 
   useEffect(() => {
     Promise.all([
-      getVersion().then(v => { setVersion(v.version); }).catch(() => {}),
-      getAgentHealth().then(h => { setAgentVersion(String((h as any).version || '')); }).catch(() => {}),
+      getVersion().then(v => { setVersion(v.webui_version || (v as any).version || ''); setAgentVersion(v.agent_version || String((v as any).agent_version || '')); }).catch(() => {}),
     ]).finally(() => setLoading(false));
 
     // Gateway status
@@ -34,7 +33,7 @@ export default function SystemPanel() {
 
   const handleCheckUpdates = async () => {
     setChecking(true); setCheckStatus('');
-    try { const v = await getVersion(); setCheckStatus(`Current version: ${v.version}.`); }
+    try { const v = await getVersion(); setCheckStatus(`Current version: ${v.webui_version || (v as any).version}.`); }
     catch { setCheckStatus('Could not check for updates'); }
     setChecking(false);
   };

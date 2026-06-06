@@ -14,6 +14,7 @@ export default function WorkspacePanel() {
   const createFile = useWorkspaceStore(s => s.createFile);
   const createDir = useWorkspaceStore(s => s.createDir);
   const clearPreview = useWorkspaceStore(s => s.clearPreview);
+  const previewPath = useWorkspaceStore(s => s.previewPath);
   const [activeTab, setActiveTab] = useState<'files' | 'artifacts'>('files');
   const [prefsMenuOpen, setPrefsMenuOpen] = useState(false);
   const [promptDialog, setPromptDialog] = useState<{ kind: 'file' | 'dir' } | null>(null);
@@ -46,16 +47,21 @@ export default function WorkspacePanel() {
 
   return (
     <>
-      {/* Edge toggle — fixed-position floating pill outside rightpanel */}
+      {/* Edge toggle — fixed-position floating pill outside rightpanel. Toggles panel open/close */}
       <button
         className="workspace-panel-edge-toggle has-tooltip has-tooltip--left"
-        onClick={() => setOpen(true)}
-        data-tooltip="Show workspace panel"
-        aria-label="Show workspace panel"
+        id="btnWorkspacePanelEdgeToggle"
+        onClick={() => useWorkspaceStore.getState().toggle()}
+        data-tooltip={workspaceOpen ? "Hide workspace panel" : "Show workspace panel"}
+        aria-label={workspaceOpen ? "Hide workspace panel" : "Show workspace panel"}
         aria-expanded={workspaceOpen}
         type="button"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {workspaceOpen
+            ? <polyline points="15 18 9 12 15 6"/>
+            : <polyline points="9 18 15 12 9 6"/>}
+        </svg>
       </button>
 
       <aside className="rightpanel" data-active-tab={activeTab}>
@@ -83,6 +89,11 @@ export default function WorkspacePanel() {
             <button className="panel-icon-btn" id="btnRefreshPanel" onClick={handleRefresh} title="Refresh">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             </button>
+            {/* Upload */}
+            <button className="panel-icon-btn" id="btnUploadWorkspace" title="Upload file"
+              onClick={() => document.getElementById('workspaceFileInput')?.click()}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </button>
             {/* Preferences kebab */}
             <div style={{ position: 'relative' }}>
               <button className="panel-icon-btn" id="btnWorkspacePrefs" onClick={() => setPrefsMenuOpen(!prefsMenuOpen)} title="Workspace options" aria-label="Workspace options" aria-haspopup="true" aria-expanded={prefsMenuOpen}>
@@ -97,12 +108,20 @@ export default function WorkspacePanel() {
                 </div>
               )}
             </div>
-            {/* Close preview */}
-            <button className="panel-icon-btn close-preview" id="btnClearPreview" onClick={() => clearPreview()} title="Close preview">
+            {/* Close preview / close workspace panel — X button */}
+            <button className="panel-icon-btn close-preview" id="btnClearPreview"
+              onClick={() => {
+                if (previewPath) { clearPreview(); }
+                else { useWorkspaceStore.getState().toggle(); }
+              }}
+              title={previewPath ? "Close preview" : "Close workspace panel"}
+              style={!previewPath ? {} : {}}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
         </div>
+        <input type="file" id="workspaceFileInput" className="file-input-visually-hidden" multiple
+          accept="image/*,text/*,.pdf,.json,.csv,.md,.py,.js,.ts,.yaml,.yml,.toml,.zip,.tar,.gz,.tgz,.bz2,.xz" />
         <div className="workspace-panel-tabs" role="tablist">
           <button className={`workspace-panel-tab${activeTab === 'files' ? ' active' : ''}`} role="tab" aria-selected={activeTab === 'files'} onClick={() => setActiveTab('files')}>Files</button>
           <button className={`workspace-panel-tab${activeTab === 'artifacts' ? ' active' : ''}`} role="tab" aria-selected={activeTab === 'artifacts'} onClick={() => setActiveTab('artifacts')}>Artifacts <span className="workspace-artifacts-count">0</span></button>

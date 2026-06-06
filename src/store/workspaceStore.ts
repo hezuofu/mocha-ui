@@ -26,6 +26,11 @@ interface WorkspaceState {
   saveFile: (path: string, content: string) => Promise<void>;
 }
 
+function getActiveSessionId(): string {
+  try { return localStorage.getItem('hermes-webui-session') || ''; }
+  catch { return ''; }
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   open: false,
   currentPath: '.',
@@ -48,7 +53,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   async navigate(path: string) {
     set({ loading: true, previewPath: null, previewContent: null, previewType: null });
     try {
-      const data = await api.listDir(path);
+      let sessionId = getActiveSessionId();
+      // Auto-create a session if none exists (workspace needs a session to list files)
+      if (!sessionId) {
+        try {
+          const data = await api.createSession();
+          sessionId = data.session.session_id;
+          try { localStorage.setItem('hermes-webui-session', sessionId); } catch {}
+        } catch {
+          set({ loading: false, entries: [] });
+          return;
+        }
+      }
+      const data = await api.listDir(path, sessionId);
       const crumbs = buildBreadcrumbs(data.path);
       set({ currentPath: data.path, entries: data.entries, breadcrumbs: crumbs, loading: false });
     } catch {

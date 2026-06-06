@@ -7,8 +7,7 @@ export default function Topbar() {
   const messages = useSessionStore(s => s.messages);
   const model = useSettingsStore(s => s.model);
 
-  if (!activeSid) return null;
-  const msgCount = messages.length;
+  return null; // hidden — original frontend has no topbar
 
   const handleExport = async (format: 'markdown' | 'json') => {
     try {

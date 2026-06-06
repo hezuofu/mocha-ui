@@ -98,6 +98,7 @@ export interface Skill {
   category: string;
   description: string;
   content?: string;
+  disabled?: boolean;
 }
 
 export interface Profile {

@@ -26,7 +26,7 @@ export const getSessions = () =>
   apiGet<{ sessions: Session[]; server_time?: number; server_tz?: string }>('/api/sessions');
 
 export const getSession = (sessionId: string) =>
-  apiGet<{ session: Session; messages: Message[] }>(`/api/session/${encodeURIComponent(sessionId)}`);
+  apiGet<{ session: Session; messages: Message[] }>(`/api/session?session_id=${encodeURIComponent(sessionId)}&messages=1`);
 
 export const createSession = (workspace?: string) =>
   apiPost<{ session: Session }>('/api/session/new', { workspace });
@@ -88,8 +88,8 @@ export const saveSettings = (settings: Partial<Settings>) =>
   apiPost('/api/settings', settings);
 
 // ── Workspace ──
-export const listDir = (path: string, workspace?: string) =>
-  apiPost<{ entries: WorkspaceEntry[]; path: string }>('/api/workspace/list', { path, workspace });
+export const listDir = (path: string, sessionId?: string) =>
+  apiGet<{ entries: WorkspaceEntry[]; path: string }>(`/api/list?session_id=${encodeURIComponent(sessionId || '')}&path=${encodeURIComponent(path)}`);
 
 export const readFile = (path: string) =>
   apiPost<{ content: string; path: string; type: string }>('/api/workspace/read', { path });
@@ -178,7 +178,7 @@ export const exportSession = (sessionId: string, format: 'markdown' | 'json' = '
 export const importSession = (data: string) =>
   apiPost<{ session: Session }>('/api/session/import', { data });
 
-export const getVersion = () => apiGet<{ version: string }>('/api/version');
+export const getVersion = () => apiGet<{ version: string; webui_version?: string; agent_version?: string }>('/api/settings') as any;
 
 export const getProjects = () => apiGet('/api/projects');
 export const createProject = (name: string, color?: string) =>

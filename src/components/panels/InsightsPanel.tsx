@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getInsights, getSystemHealth, getWikiStatus, getSkillUsage } from '../../api/endpoints';
+import { getInsights, getSystemHealth, getWikiStatus } from '../../api/endpoints';
 import { usePanelStore } from '../../store/panelStore';
 
 const PERIODS = [
@@ -88,7 +88,6 @@ export default function InsightsPanel({ sidebar }: { sidebar?: boolean }) {
   const period = usePanelStore(s => s.insightsPeriod);
   const [data, setData] = useState<InsightsData | null>(null);
   const [wikiStatus, setWikiStatus] = useState<any>(null);
-  const [skillUsage, setSkillUsage] = useState<any>(null);
   const [health, setHealth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -97,14 +96,12 @@ export default function InsightsPanel({ sidebar }: { sidebar?: boolean }) {
     setLoading(true);
     setError('');
     try {
-      const [insightsData, wiki, skills] = await Promise.all([
+      const [insightsData, wiki] = await Promise.all([
         getInsights(period) as Promise<InsightsData>,
         getWikiStatus(),
-        getSkillUsage(),
       ]);
       setData(insightsData);
       setWikiStatus(wiki);
-      setSkillUsage(skills);
     } catch (e) {
       setError((e as Error).message || 'Failed to load insights');
     }
@@ -259,46 +256,6 @@ export default function InsightsPanel({ sidebar }: { sidebar?: boolean }) {
     );
   };
 
-  // Skill usage
-  const renderSkillUsage = () => {
-    const su = skillUsage || {};
-    const skills = su.skill_names || [];
-    const total = su.total_invocations || 0;
-    if (!skills.length) {
-      return (
-        <div className="insights-card" id="skillUsageCard">
-          <div className="insights-card-title">Skill Usage</div>
-          <div className="insights-empty">No skill usage data yet</div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Skills will appear here once used in conversations.</div>
-        </div>
-      );
-    }
-    // Build skill rows from usage data
-    const usage = su.usage || {};
-    const rows = skills.map((name: string) => {
-      const u = usage[name] || {};
-      return (
-        <div key={name} className="insights-table-row">
-          <span className="insights-model-name" title={name}>{name}</span>
-          <span>{fmtNum(u.invocations || 0)}</span>
-          <span>{fmtTokens(u.input_tokens || 0)}</span>
-          <span>{fmtTokens(u.output_tokens || 0)}</span>
-        </div>
-      );
-    });
-    return (
-      <div className="insights-card" id="skillUsageCard">
-        <div className="insights-card-title">Skill Usage ({total} invocations)</div>
-        <div className="insights-table insights-model-table">
-          <div className="insights-table-head">
-            <span>Skill</span><span>Uses</span><span>In tokens</span><span>Out tokens</span>
-          </div>
-          {rows}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
       {/* ── System health panel ── */}
@@ -306,9 +263,6 @@ export default function InsightsPanel({ sidebar }: { sidebar?: boolean }) {
 
       {/* ── LLM Wiki status ── */}
       {renderWikiStatus()}
-
-      {/* ── Skill usage ── */}
-      {renderSkillUsage()}
 
       {/* ── Overview stat cards ── */}
       <div className="insights-grid">

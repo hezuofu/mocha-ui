@@ -11,8 +11,8 @@ import Rail from './components/layout/Rail';
 import Sidebar from './components/layout/Sidebar';
 import WorkspacePanel from './components/layout/WorkspacePanel';
 import LoginPage from './components/auth/LoginPage';
-import MainArea from './components/chat/MainArea';
 import Topbar from './components/layout/Topbar';
+import MainArea from './components/chat/MainArea';
 import { ToastProvider } from './components/shared/Toast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { I18nProvider } from './i18n';
@@ -33,6 +33,7 @@ const PANEL_TITLEBAR_KEYS: Record<string, string> = {
 
 export default function App() {
   const loadSessions = useSessionStore(s => s.loadSessions);
+  const restoreLastSession = useSessionStore(s => s.restoreLastSession);
   const loadSettings = useSettingsStore(s => s.loadSettings);
   const loadModels = useSettingsStore(s => s.loadModels);
   const activeSessionId = useSessionStore(s => s.activeSessionId);
@@ -50,12 +51,12 @@ export default function App() {
   });
 
   useEffect(() => {
-    loadSessions();
+    restoreLastSession();
     loadSettings();
     loadModels();
     try { setSidebarCollapsed(localStorage.getItem('hermes-webui-sidebar-collapsed') === '1'); }
     catch { /* ignore */ }
-  }, [loadSessions, loadSettings, loadModels]);
+  }, [restoreLastSession, loadSettings, loadModels]);
 
   // Sync theme / skin / font-size / workspace-panel to DOM attributes
   useEffect(() => {

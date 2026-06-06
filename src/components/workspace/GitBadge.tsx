@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { apiGet } from '../../api/client';
 
 export default function GitBadge() {
   const [branch, setBranch] = useState('');
 
   useEffect(() => {
-    apiGet<{ branch: string; dirty: boolean }>('/api/git/status').then((d: unknown) => {
-      const s = d as Record<string, unknown>;
-      if (s.branch) setBranch(String(s.branch));
+    // Git status is optional — silently ignore failures
+    fetch('/api/git/status').then(r => r.json().catch(() => null)).then((d: any) => {
+      if (d?.branch) setBranch(String(d.branch));
     }).catch(() => {});
   }, []);
 

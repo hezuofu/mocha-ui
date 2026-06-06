@@ -105,18 +105,81 @@ export default function AppearancePanel() {
         </div>
       </div>
 
+      {/* ── Font Size hidden input for form serialization ── */}
+      <input type="hidden" id="settingsFontSize" value={fontSize} />
+
+      {/* ── Keep workspace panel open by default ── */}
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" id="settingsWorkspacePanelOpen"
+            style={{ width: 15, height: 15, accentColor: 'var(--accent)' }}
+            defaultChecked={localStorage.getItem('hermes-webui-workspace-panel') === 'open'}
+            onChange={e => {
+              localStorage.setItem('hermes-webui-workspace-panel', e.target.checked ? 'open' : 'closed');
+              document.documentElement.dataset.workspacePanel = e.target.checked ? 'open' : 'closed';
+            }} />
+          <span>Keep workspace panel open by default</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>When enabled, the workspace / file browser panel opens automatically with each new session. You can still close it manually at any time.</div>
+      </div>
+
+      {/* ── Show session jump buttons ── */}
+      <div className="settings-field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" id="settingsSessionJumpButtons"
+            style={{ width: 15, height: 15, accentColor: 'var(--accent)' }}
+            defaultChecked={localStorage.getItem('hermes-webui-session-jump-buttons') === '1'}
+            onChange={e => {
+              localStorage.setItem('hermes-webui-session-jump-buttons', e.target.checked ? '1' : '0');
+            }} />
+          <span>Show session jump buttons</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Show floating Start and End buttons while reading long session histories.</div>
+      </div>
+
+      {/* ── Load older messages while scrolling up ── */}
+      <div className="settings-field" style={{ marginTop: 8 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" id="settingsSessionEndlessScroll"
+            style={{ width: 15, height: 15, accentColor: 'var(--accent)' }}
+            defaultChecked={localStorage.getItem('hermes-webui-session-endless-scroll') === '1'}
+            onChange={e => {
+              localStorage.setItem('hermes-webui-session-endless-scroll', e.target.checked ? '1' : '0');
+            }} />
+          <span>Load older messages while scrolling up</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>When enabled, older messages load automatically as you scroll upward. When disabled, use the older-messages button.</div>
+      </div>
+
+      {/* ── Expand activity feed by default ── */}
+      <div className="settings-field" style={{ marginTop: 8 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" id="settingsActivityFeedExpandedDefault"
+            style={{ width: 15, height: 15, accentColor: 'var(--accent)' }}
+            defaultChecked={localStorage.getItem('hermes-webui-activity-feed-expanded') === '1'}
+            onChange={e => {
+              localStorage.setItem('hermes-webui-activity-feed-expanded', e.target.checked ? '1' : '0');
+            }} />
+          <span>Expand activity feed by default</span>
+        </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Open new Activity disclosures automatically so tool and model progress is visible without an extra click. Per-turn manual collapse/expand choices still win.</div>
+      </div>
+
       {/* ── Sidebar Tabs ── */}
       <div className="settings-field">
-        <label style={{ marginBottom: 8 }}>Sidebar Tabs</label>
-        <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>Show or hide navigation tabs. Chat and Settings are always visible.</p>
-        <div className="tab-visibility-grid">
+        <label id="tabVisibilityLabel">Sidebar tabs</label>
+        <div id="tabVisibilityChips" className="tab-visibility-chips" role="group" aria-labelledby="tabVisibilityLabel">
           {ALL_TABS.map(tab => (
             <button key={tab.id} className={`tab-visibility-chip${hiddenTabs.has(tab.id) ? ' hidden-chip' : ''}`} onClick={() => toggleTabVisibility(tab.id)}>
               <span>{tab.label}</span>
             </button>
           ))}
         </div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Choose which tabs appear in the sidebar and rail. Chat and Settings are always visible.</div>
       </div>
+
+      {/* ── Autosave status ── */}
+      <div id="settingsAppearanceAutosaveStatus" className="settings-autosave-status" aria-live="polite"></div>
     </>
   );
 }

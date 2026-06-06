@@ -75,12 +75,26 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ sessions: data.sessions || [] });
   },
 
+  // Auto-restore last session on app boot (matching original boot.js)
+  async restoreLastSession() {
+    const data = await api.getSessions();
+    if (data.server_time) get().setServerTime(data.server_time, data.server_tz);
+    const sessions = data.sessions || [];
+    set({ sessions });
+
+    const savedId = localStorage.getItem('hermes-webui-session');
+    if (savedId && sessions.some((s: any) => s.session_id === savedId)) {
+      await get().loadSession(savedId);
+    }
+  },
+
   async loadSession(id: string) {
     closeSSE(id);
+    localStorage.setItem('hermes-webui-session', id);
     const data = await api.getSession(id);
     set({
       activeSessionId: id,
-      messages: data.messages || [],
+      messages: (data.session as any)?.messages || data.messages || [],
       toolCalls: [],
       activeStreamId: data.session.active_stream_id || null,
       activeProfile: data.session.profile || 'default',

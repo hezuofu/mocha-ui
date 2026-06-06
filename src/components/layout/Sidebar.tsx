@@ -183,6 +183,12 @@ export default function Sidebar({ activePanel, mobileOpen, onSwitch }: SidebarPr
       <div className={`panel-view${activePanel === 'skills' ? ' active' : ''}`} id="panelSkills">
         <div className="panel-head">
           <span>{t('tab_skills')}</span>
+          <div className="panel-head-actions">
+            <button className="panel-head-btn has-tooltip has-tooltip--bottom" data-tooltip="New skill" aria-label="New skill"
+              onClick={() => window.dispatchEvent(new CustomEvent('skill-create'))}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
         </div>
         <SkillsPanel />
       </div>
