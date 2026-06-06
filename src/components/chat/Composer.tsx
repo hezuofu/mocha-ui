@@ -54,7 +54,37 @@ export default function Composer() {
   const contextMax = useStreamingStore(s => s.contextMax);
 
   const toggleWorkspace = useWorkspaceStore(s => s.toggle);
-  const currentWorkspace = useWorkspaceStore(s => s.currentPath);
+  // ── Workspace label: mirrors original syncWorkspaceDisplays() / getWorkspaceFriendlyName() ──
+  const [workspaceLabel, setWorkspaceLabel] = useState('workspace');
+  useEffect(() => {
+    const update = () => {
+      const active = useSessionStore.getState().sessions.find(
+        x => x.session_id === useSessionStore.getState().activeSessionId
+      );
+      const defaultWs = useSettingsStore.getState().default_workspace || '';
+      const wsPath = active?.workspace || defaultWs;
+      if (!wsPath) { setWorkspaceLabel('no workspace'); return; }
+      // Look up friendly name from workspaces list (mirrors getWorkspaceFriendlyName)
+      import('../../api/client').then(({ apiGet }) => {
+        apiGet<{ workspaces: { name: string; path: string }[] }>('/api/workspaces').then(data => {
+          const list = data?.workspaces || [];
+          const match = list.find((w: any) => w.path === wsPath);
+          if (match?.name) { setWorkspaceLabel(match.name); return; }
+          // Fallback: last path segment
+          const ws = wsPath.replace(/\\/g, '/');
+          const parts = ws.split('/').filter(Boolean);
+          setWorkspaceLabel(parts.length > 0 ? parts[parts.length - 1] : wsPath);
+        }).catch(() => {
+          const ws = wsPath.replace(/\\/g, '/');
+          const parts = ws.split('/').filter(Boolean);
+          setWorkspaceLabel(parts.length > 0 ? parts[parts.length - 1] : wsPath);
+        });
+      });
+    };
+    update(); // initial
+    const id = setInterval(update, 5000); // periodic refresh
+    return () => clearInterval(id);
+  }, []);
 
   const saveSettings = useSettingsStore(s => s.saveSettings);
   const createSession = useSessionStore(s => s.createSession);
@@ -72,6 +102,9 @@ export default function Composer() {
   const [mobileConfigOpen, setMobileConfigOpen] = useState(false);
   const [showCommands, setShowCommands] = useState(false);
   const [showProfilePicker, setShowProfilePicker] = useState(false);
+  const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
+  const wsDropdownRef = useRef<HTMLDivElement>(null);
+  const [workspaceList, setWorkspaceList] = useState<any[]>([]);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
   const [customModel, setCustomModel] = useState('');
@@ -80,43 +113,91 @@ export default function Composer() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [input, setInput] = useState('');
 
-  // Built-in slash commands
-  // Full command definitions with handlers
-  const commands = [
-    { name: '/help', desc: 'Show available commands', action: () => { setInput('/help — Commands: /model /theme /new /clear /stop /retry /undo /voice /yolo /workspace /title /reasoning /compress /status /usage /background /btw /branch /compact /personality /goal /interrupt /steer /queue /skills /dark /light /system /skin /font /language /export /import'); } },
-    { name: '/model', desc: 'Switch AI model', action: (arg: string) => { if (arg) saveSettings({ model: arg }); } },
-    { name: '/theme', desc: 'Switch theme (dark/light/system)', action: (arg: string) => { if (arg === 'dark' || arg === 'light' || arg === 'system') setTheme(arg); } },
+  // Built-in slash commands (matches original / commands)
+  const [skillCommands, setSkillCommands] = useState<{ name: string; desc: string; isSkill?: boolean }[]>([]);
+
+  useEffect(() => {
+    // Load skills for slash command autocomplete
+    import('../../api/endpoints').then(({ getSkills }) => {
+      getSkills().then(data => {
+        const skills = (data as any).skills || [];
+        setSkillCommands(skills.map((s: any) => ({
+          name: '/' + s.name + 'Skill',
+          desc: s.description || s.name,
+          isSkill: true,
+        })));
+      }).catch(() => {});
+    });
+    // Load workspaces for workspace switcher dropdown
+    import('../../api/client').then(({ apiGet }) => {
+      apiGet<any>('/api/workspaces').then(data => {
+        setWorkspaceList(data?.workspaces || []);
+      }).catch(() => {});
+    });
+  }, []);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    if (!showWorkspaceDropdown && !showReasoning && !showToolsets) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (showWorkspaceDropdown && !target.closest('#composerWorkspaceChip') && !target.closest('#composerWsDropdown')) {
+        setShowWorkspaceDropdown(false);
+      }
+      if (showReasoning && !target.closest('#composerReasoningChip') && !target.closest('#composerReasoningDropdown')) {
+        setShowReasoning(false);
+      }
+      if (showToolsets && !target.closest('#composerToolsetsChip') && !target.closest('#composerToolsetsDropdown')) {
+        setShowToolsets(false);
+      }
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [showWorkspaceDropdown, showReasoning, showToolsets]);
+
+  const builtinCommands = [
+    { name: '/help', desc: 'Show available slash commands', action: () => { setInput('/help — Commands: /model /theme /new /clear /stop /retry /undo /voice /yolo /workspace /title /reasoning /compress /status /usage /background /btw /branch /compact /personality /goal /interrupt /steer /queue /skills /dark /light /system /skin /font /language /export /import'); } },
+    { name: '/clear', desc: 'Clear conversation messages', action: () => { if (activeSid) { import('../../api/endpoints').then(({ clearConversation }) => { clearConversation(activeSid); }); } } },
+    { name: '/compress', desc: 'Manually compress conversation context (usage: /compress [focus topic])', action: () => { import('../../api/endpoints').then(({ getCompressStatus }) => { if (activeSid) getCompressStatus(activeSid); }); } },
+    { name: '/compact', desc: 'Alias for /compress', action: () => { import('../../api/endpoints').then(({ getCompressStatus }) => { if (activeSid) getCompressStatus(activeSid); }); } },
+    { name: '/model', desc: 'Switch AI model (usage: /model model_name)', action: (arg: string) => { if (arg) saveSettings({ model: arg }); } },
+    { name: '/workspace', desc: 'Switch workspace (usage: /workspace name)', action: (arg: string) => { if (arg) { useWorkspaceStore.getState().navigate(arg); } } },
+    { name: '/terminal', desc: 'Toggle composer terminal', action: () => { /* terminal toggle */ } },
+    { name: '/new', desc: 'Create new conversation', action: () => { createSession(); } },
+    { name: '/usage', desc: 'Show token usage for current session', action: () => { alert(`Tokens: ${contextTokens.toLocaleString()} / ${contextMax.toLocaleString()} (${Math.round((contextTokens / contextMax) * 100)}%)`); } },
+    { name: '/theme', desc: 'Switch theme (usage: /theme name)', action: (arg: string) => { if (arg === 'dark' || arg === 'light' || arg === 'system') setTheme(arg); } },
     { name: '/dark', desc: 'Switch to dark theme', action: () => { setTheme('dark'); } },
     { name: '/light', desc: 'Switch to light theme', action: () => { setTheme('light'); } },
     { name: '/system', desc: 'Use system theme', action: () => { setTheme('system'); } },
     { name: '/skin', desc: 'Switch accent skin', action: (arg: string) => { if (arg) setSkin(arg); } },
     { name: '/font', desc: 'Set font size (small/default/large/xlarge)', action: (arg: string) => { if (arg) setFontSize(arg); } },
-    { name: '/new', desc: 'Create new conversation', action: () => { createSession(); } },
-    { name: '/clear', desc: 'Clear composer input', action: () => { setInput(''); } },
+    { name: '/language', desc: 'Switch UI language', action: (arg: string) => { if (arg) saveSettings({ language: arg }); } },
+    { name: '/personality', desc: 'Switch agent personality (usage: /personality name)', action: (arg: string) => { if (arg) saveSettings({ bot_name: arg }); } },
+    { name: '/skills', desc: 'Search and toggle skills (usage: /skills query)', action: (arg: string) => { if (arg) switchPanel('skills' as PanelId); } },
     { name: '/stop', desc: 'Stop current generation', action: () => { if (activeSid && activeStreamId) cancelStream(activeSid, activeStreamId); } },
-    { name: '/retry', desc: 'Retry last assistant message', action: () => { import('../../api/endpoints').then(({ retryMessage }) => { if (activeSid) retryMessage(activeSid, -1); }); } },
-    { name: '/undo', desc: 'Undo last exchange', action: () => { import('../../api/endpoints').then(({ editAndRegenerate }) => { if (activeSid) editAndRegenerate(activeSid, -1, ''); }); } },
-    { name: '/voice', desc: 'Toggle voice input', action: () => { setVoiceActive(!voiceActive); } },
-    { name: '/yolo', desc: 'Toggle YOLO mode (auto-approve all)', action: () => { setYoloMode(!yoloMode); } },
-    { name: '/workspace', desc: 'Switch workspace path', action: (arg: string) => { if (arg) { import('../../api/endpoints').then(({ listDir }) => { listDir(arg); useWorkspaceStore.getState().navigate(arg); }); } } },
-    { name: '/title', desc: 'Rename current session', action: (arg: string) => { if (arg && activeSid) renameSession(activeSid, arg); } },
-    { name: '/reasoning', desc: 'Set reasoning effort (none/minimal/low/medium/high/xhigh/max)', action: () => { setShowReasoning(true); } },
-    { name: '/compress', desc: 'Compress conversation context', action: () => { import('../../api/endpoints').then(({ getCompressStatus }) => { if (activeSid) getCompressStatus(activeSid); }); } },
-    { name: '/compact', desc: 'Alias for /compress', action: () => { import('../../api/endpoints').then(({ getCompressStatus }) => { if (activeSid) getCompressStatus(activeSid); }); } },
-    { name: '/status', desc: 'Show session status', action: () => { if (activeSid) import('../../api/endpoints').then(({ getSession }) => { getSession(activeSid); }); } },
-    { name: '/usage', desc: 'Show token usage', action: () => { alert(`Tokens: ${contextTokens.toLocaleString()} / ${contextMax.toLocaleString()} (${Math.round((contextTokens / contextMax) * 100)}%)`); } },
-    { name: '/background', desc: 'Run prompt in background', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/background', { session_id: activeSid, prompt: arg }); }); } } },
-    { name: '/btw', desc: 'Start a by-the-way task', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/btw', { session_id: activeSid, question: arg }); }); } } },
-    { name: '/branch', desc: 'Create a branch from current session', action: (arg: string) => { if (activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/session/branch', { session_id: activeSid, title: arg || undefined }); }); } } },
-    { name: '/personality', desc: 'Set agent personality', action: (arg: string) => { if (activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/personality/set', { session_id: activeSid, name: arg || '' }); }); } } },
-    { name: '/goal', desc: 'Set agent goal', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/goal', { session_id: activeSid, goal: arg }); }); } } },
+    { name: '/goal', desc: 'Set, pause, resume, or clear agent goal (usage: /goal [status|pause|resume|clear|text])', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/goal', { session_id: activeSid, goal: arg }); }); } } },
+    { name: '/queue', desc: 'Queue a message for next turn (usage: /queue message)', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/chat/send', { session_id: activeSid, message: arg, queue: true }); }); } } },
     { name: '/interrupt', desc: 'Interrupt and send new message', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/chat/steer', { session_id: activeSid, message: arg, mode: 'interrupt' }); }); } } },
     { name: '/steer', desc: 'Steer agent mid-task', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/chat/steer', { session_id: activeSid, message: arg, mode: 'steer' }); }); } } },
-    { name: '/queue', desc: 'Queue a message for next turn', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/chat/send', { session_id: activeSid, message: arg, stream_id: activeStreamId || 'queue', queue: true }); }); } } },
-    { name: '/skills', desc: 'Search and toggle skills', action: (arg: string) => { if (arg) { switchPanel('skills' as PanelId); import('../../api/endpoints').then(({ searchSkills }) => { searchSkills(arg); }); } } },
-    { name: '/language', desc: 'Switch UI language', action: (arg: string) => { if (arg) { const { setLocale } = require("../../i18n").useI18n; try { const ctx = document.createElement("div"); ctx.remove(); useI18n().setLocale(arg); } catch {}; saveSettings({ language: arg }) }; } },
-    { name: '/export', desc: 'Export session as JSON', action: () => { if (activeSid) { import('../../api/endpoints').then(({ exportSession }) => { exportSession(activeSid, 'json').then(r => { const b = new Blob([r.data], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'session.json'; a.click(); }); }); } } },
-    { name: '/import', desc: 'Import session from JSON', action: () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json'; inp.onchange = async () => { const f = inp.files?.[0]; if (f) { const t = await f.text(); import('../../api/endpoints').then(({ importSession }) => { importSession(t).then(() => window.location.reload()); }); } }; inp.click(); } },
+    { name: '/title', desc: 'Rename current session (usage: /title [title])', action: (arg: string) => { if (arg && activeSid) renameSession(activeSid, arg); } },
+    { name: '/retry', desc: 'Retry last assistant message', action: () => { if (activeSid) import('../../api/endpoints').then(({ retryMessage }) => { retryMessage(activeSid, -1); }); } },
+    { name: '/undo', desc: 'Undo last exchange', action: () => { if (activeSid) import('../../api/endpoints').then(({ editAndRegenerate }) => { editAndRegenerate(activeSid, -1, ''); }); } },
+    { name: '/btw', desc: 'Start a by-the-way task (usage: /btw question)', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/btw', { session_id: activeSid, question: arg }); }); } } },
+    { name: '/background', desc: 'Run prompt in background (usage: /background prompt)', action: (arg: string) => { if (arg && activeSid) { import('../../api/client').then(({ apiPost }) => { apiPost('/api/background', { session_id: activeSid, prompt: arg }); }); } } },
+    { name: '/status', desc: 'Show session status', action: () => { if (activeSid) import('../../api/endpoints').then(({ getSession }) => { getSession(activeSid); }); } },
+    { name: '/voice', desc: 'Toggle voice dictation', action: () => { setVoiceActive(!voiceActive); } },
+    { name: '/reasoning', desc: 'Set reasoning effort (usage: /reasoning show|hide|none|minimal|low|medium|high|xhigh|max)', action: () => { setShowReasoning(true); } },
+    { name: '/yolo', desc: 'Toggle YOLO mode', action: () => { setYoloMode(!yoloMode); } },
+    { name: '/branch', desc: 'Create a git worktree branch (usage: /branch [name])', action: () => {} },
+    { name: '/rollback', desc: 'Rollback to previous session state', action: () => {} },
+    { name: '/agents', desc: 'List available agent processes', action: () => {} },
+    { name: '/whoami', desc: 'Show current user/session info', action: () => {} },
+    { name: '/profile', desc: 'Switch active agent profile', action: () => {} },
+    { name: '/sessions', desc: 'List recent sessions', action: () => {} },
+    { name: '/fast', desc: 'Toggle fast mode', action: () => {} },
+    { name: '/insights', desc: 'Open insights panel', action: () => { switchPanel('insights' as PanelId); } },
+    { name: '/export', desc: 'Export session as JSON', action: () => { if (activeSid) { import('../../api/endpoints').then(({ exportSession }) => { exportSession(activeSid, 'json'); }); } } },
+    { name: '/import', desc: 'Import session from JSON', action: () => { fileInputRef.current?.click(); } },
   ];
 
   const handleInputChange = useCallback((value: string) => {
@@ -129,7 +210,7 @@ export default function Composer() {
     const parts = text.split(/\s+/);
     const cmdName = parts[0].toLowerCase();
     const arg = parts.slice(1).join(' ');
-    const cmd = commands.find(c => c.name === cmdName);
+    const cmd = [...builtinCommands, ...skillCommands].find(c => c.name === cmdName);
     if (cmd) {
       setInput('');
       setShowCommands(false);
@@ -137,15 +218,21 @@ export default function Composer() {
       return true;
     }
     return false;
-  }, [commands]);
+  }, [builtinCommands, skillCommands]);
 
   const applyCommand = useCallback((cmdName: string) => {
     setInput(cmdName + ' ');
     setShowCommands(false);
   }, []);
 
+  const allCommands = [...builtinCommands, ...skillCommands];
   const matchingCommands = showCommands
-    ? commands.filter(c => c.name.startsWith(input.toLowerCase()))
+    ? allCommands.filter(c => {
+        const q = input.toLowerCase();
+        return c.name.toLowerCase().startsWith(q) ||
+          // For skills: match without 'Skill' suffix too
+          ((c as any).isSkill && c.name.toLowerCase().replace(/skill$/, '').startsWith(q));
+      })
     : [];
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const activeProfile = useSessionStore(s => s.activeProfile);
@@ -248,7 +335,7 @@ export default function Composer() {
     let sid = activeSid;
     if (!sid) {
       // Auto-create session if none active
-      const c = await createSession(currentWorkspace || undefined);
+      const c = await createSession();
       sid = c;
     }
 
@@ -374,6 +461,22 @@ export default function Composer() {
           ))}
         </div>
 
+        {/* Slash command autocomplete — inside .composer-box, before textarea, matches original #cmdDropdown */}
+        {showCommands && matchingCommands.length > 0 && (
+          <div className="cmd-dropdown open" id="cmdDropdown">
+            {matchingCommands.map((cmd, i) => (
+              <div key={cmd.name} className={`cmd-item${i === 0 ? ' selected' : ''}`} data-idx={i}
+                onClick={() => { applyCommand(cmd.name); }}>
+                <div className="cmd-item-name">
+                  {cmd.name}
+                  {(cmd as any).isSkill && <span className="cmd-item-badge">skill</span>}
+                </div>
+                <div className="cmd-item-desc">{cmd.desc}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <textarea
           ref={textareaRef}
           id="msg"
@@ -474,7 +577,7 @@ export default function Composer() {
               )}
             </div>
 
-            {/* Workspace chip */}
+            {/* Workspace chip — order matches original: ws-wrap → MobileConfigBtn → model-wrap → providerQuotaChip → ReasoningWrap → ToolsetsWrap */}
             <div className="composer-ws-wrap">
               <div className="composer-workspace-group ws-chip" id="composerWorkspaceGroup" role="group" aria-label="Workspace controls">
                 <button className="composer-workspace-files-btn" id="btnWorkspacePanelToggle" type="button" onClick={() => toggleWorkspace()} title="Toggle workspace files panel" aria-label="Toggle workspace files panel">
@@ -482,50 +585,131 @@ export default function Composer() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                   </span>
                 </button>
-                <button className="composer-workspace-chip" id="composerWorkspaceChip" type="button" onClick={() => toggleWorkspace()} title="Toggle workspace panel">
-                  <span className="composer-workspace-label" id="composerWorkspaceLabel">{currentWorkspace === '.' ? 'workspace' : currentWorkspace}</span>
+                <button className="composer-workspace-chip" id="composerWorkspaceChip" type="button"
+                  onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
+                  title={useSettingsStore.getState().default_workspace || 'Switch workspace'}
+                  disabled={!activeSid}>
+                  <span className="composer-workspace-label" id="composerWorkspaceLabel">{workspaceLabel}</span>
                   <span className="composer-workspace-chevron" aria-hidden="true">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                   </span>
                 </button>
               </div>
+              {showWorkspaceDropdown && (() => {
+                const chip = document.getElementById('composerWorkspaceChip');
+                const rect = chip?.getBoundingClientRect();
+                const sorted = [...(workspaceList || [])].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+                return createPortal(
+                <div ref={wsDropdownRef} className="ws-dropdown ws-dropdown-footer open" id="composerWsDropdown" style={{
+                  position: 'fixed',
+                  left: rect ? Math.max(0, rect.left - 60) : 0,
+                  bottom: rect ? window.innerHeight - rect.top + 4 : 0,
+                  zIndex: 99999, minWidth: 320,
+                }}>
+                  {/* Search row */}
+                  <div className="ws-search-row">
+                    <input className="ws-search-input" type="text" placeholder="Search workspaces…" spellCheck={false} autoComplete="off"
+                      onChange={e => {
+                        const term = e.target.value.toLowerCase();
+                        const container = document.querySelector('#composerWsDropdown .ws-list-container');
+                        if (container) {
+                          let visible = 0;
+                          container.querySelectorAll('.ws-opt').forEach((opt: any) => {
+                            const name = (opt.dataset.name || '').toLowerCase();
+                            const path = (opt.dataset.path || '').toLowerCase();
+                            const show = !term || name.includes(term) || path.includes(term);
+                            (opt as HTMLElement).style.display = show ? '' : 'none';
+                            if (show) visible++;
+                          });
+                          const noRes = document.querySelector('#composerWsDropdown .ws-no-results') as HTMLElement;
+                          if (noRes) noRes.style.display = visible ? 'none' : '';
+                        }
+                      }} />
+                    <button className="ws-search-clear" title="Clear search" onClick={(e) => {
+                      const inp = (e.target as HTMLElement).parentElement?.querySelector('.ws-search-input') as HTMLInputElement;
+                      if (inp) { inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.focus(); }
+                    }}>✕</button>
+                  </div>
+                  {/* Workspace list */}
+                  <div className="ws-list-container">
+                    {sorted.map((ws: any) => (
+                      <div key={ws.path} className="ws-opt" data-name={ws.name} data-path={ws.path}
+                        onClick={() => {
+                          import('../../api/endpoints').then(({ listDir }) => {
+                            listDir(ws.path);
+                            useWorkspaceStore.getState().navigate(ws.path);
+                          });
+                          setShowWorkspaceDropdown(false);
+                        }}>
+                        <span className="ws-opt-name">{ws.name}</span>
+                        <span className="ws-opt-path">{ws.path}</span>
+                      </div>
+                    ))}
+                    <div className="ws-no-results" style={{ display: 'none' }}>No workspaces found</div>
+                  </div>
+                  <div className="ws-divider" />
+                  {/* New worktree conversation */}
+                  <div className="ws-opt ws-opt-action" onClick={() => { setShowWorkspaceDropdown(false); }}>
+                    <span className="ws-opt-icon">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                    </span>
+                    <span>
+                      <span className="ws-opt-name">New worktree conversation</span>
+                      <span className="ws-opt-meta">Isolated git worktree with its own session</span>
+                    </span>
+                  </div>
+                  <div className="ws-divider" />
+                  {/* Choose path */}
+                  <div className="ws-opt ws-opt-action" onClick={() => { setShowWorkspaceDropdown(false); }}>
+                    <span className="ws-opt-icon">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    </span>
+                    <span>
+                      <span className="ws-opt-name">Choose path…</span>
+                      <span className="ws-opt-meta">Open any folder on this machine</span>
+                    </span>
+                  </div>
+                  <div className="ws-divider" />
+                  {/* Manage */}
+                  <div className="ws-opt ws-opt-action" onClick={() => { switchPanel('workspaces' as PanelId); setShowWorkspaceDropdown(false); }}>
+                    <span className="ws-opt-icon">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </span>
+                    <span>
+                      <span className="ws-opt-name">Manage workspaces</span>
+                      <span className="ws-opt-meta">Add, rename, or remove workspace directories</span>
+                    </span>
+                  </div>
+                </div>,
+                document.body
+                );
+              })()}
             </div>
 
-            {/* Reasoning chip */}
-            <div className="composer-reasoning-wrap">
-              <button className={`composer-reasoning-chip${showReasoning ? ' active' : ''}`} type="button" onClick={() => setShowReasoning(!showReasoning)} title="Reasoning effort">
-                <span className="composer-model-icon" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2z"/></svg>
-                </span>
-                <span className="composer-model-label">{t('think')}</span>
-                <span className="composer-model-chevron" aria-hidden="true">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </span>
-              </button>
-            </div>
-
-            {/* Toolsets chip */}
-            <div className="composer-toolsets-wrap" style={{ display: 'block' }}>
-              <button className={`composer-toolsets-chip${showToolsets ? ' active' : ''}`} type="button" onClick={() => setShowToolsets(!showToolsets)} title="Session toolsets">
-                <span className="composer-model-icon" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                </span>
-                <span className="composer-model-label">{t('tools')}</span>
-                <span className="composer-model-chevron" aria-hidden="true">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </span>
-              </button>
-            </div>
+            {/* Mobile config button */}
+            <button className="icon-btn composer-mobile-config-btn has-tooltip" id="composerMobileConfigBtn" type="button" onClick={() => setMobileConfigOpen(!mobileConfigOpen)} title="Workspace, model, reasoning, and context settings" aria-label="Workspace, model, reasoning, and context settings" aria-haspopup="true" aria-expanded={mobileConfigOpen}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+            </button>
 
             {/* Model chip */}
             <div className="composer-model-wrap" style={{ position: 'relative' }}>
               <button className={`composer-model-chip${modelDropdownOpen ? ' active' : ''}`} id="composerModelChip" type="button"
                 ref={modelChipRef}
-                onClick={() => setModelDropdownOpen(!modelDropdownOpen)} title="Conversation model">
+                onClick={() => setModelDropdownOpen(!modelDropdownOpen)} title={model || 'Auto'}>
                 <span className="composer-model-icon" aria-hidden="true">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
                 </span>
-                <span className="composer-model-label" id="composerModelLabel">{model || 'GPT-5.4 Mini'}</span>
+                <span className="composer-model-label" id="composerModelLabel">{
+                  (() => {
+                    const m = model || '';
+                    if (m.includes('/')) {
+                      const [prov, ...rest] = m.split('/');
+                      const provName = prov.charAt(0).toUpperCase() + prov.slice(1);
+                      return provName + ': ' + rest.join('/');
+                    }
+                    return m || 'Auto';
+                  })()
+                }</span>
                 <span className="composer-model-chevron" aria-hidden="true">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </span>
@@ -610,17 +794,82 @@ export default function Composer() {
             </div>
 
             {/* Provider quota chip */}
-            <span className="provider-quota-chip" title="API quota available" style={{ display: 'none' }}>
+            <button className="provider-quota-chip" id="providerQuotaChip" title="API quota available" style={{ display: 'none' }}>
               <span className="provider-quota-chip-dot" />
-              <span className="composer-model-label">Quota OK</span>
-            </span>
-
-            {/* Mobile config button */}
-            <button type="button" className="icon-btn composer-mobile-config-btn has-tooltip"
-              onClick={() => setMobileConfigOpen(!mobileConfigOpen)} data-tooltip="Configure"
-              style={{ display: 'inline-flex' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+              <span className="provider-quota-chip-label" id="providerQuotaChipLabel">Quota OK</span>
             </button>
+
+            {/* Reasoning chip */}
+            <div className="composer-reasoning-wrap" id="composerReasoningWrap" style={{ position: 'relative' }}>
+              <button className={`composer-reasoning-chip${showReasoning ? ' active' : ''}`} id="composerReasoningChip" type="button" onClick={() => setShowReasoning(!showReasoning)} title="Reasoning effort level">
+                <span className="composer-reasoning-icon" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>
+                </span>
+                <span className="composer-reasoning-label" id="composerReasoningLabel">high</span>
+                <span className="composer-reasoning-chevron" aria-hidden="true">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+              </button>
+              {showReasoning && (() => {
+                const chip = document.getElementById('composerReasoningChip');
+                const rect = chip?.getBoundingClientRect();
+                return createPortal(
+                <div className="composer-reasoning-dropdown open" id="composerReasoningDropdown" style={{
+                  position: 'fixed',
+                  left: rect ? rect.left : 0,
+                  bottom: rect ? window.innerHeight - rect.top + 4 : 0,
+                  zIndex: 99999,
+                }}>
+                  {['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map(effort => (
+                    <div key={effort} className="reasoning-option" data-effort={effort}
+                      onClick={() => { saveSettings({ reasoning_effort: effort } as any); setShowReasoning(false); }}>
+                      {effort === 'xhigh' ? 'Extra High' : effort.charAt(0).toUpperCase() + effort.slice(1)}
+                    </div>
+                  ))}
+                </div>,
+                document.body
+                );
+              })()}
+            </div>
+
+            {/* Toolsets chip */}
+            <div className="composer-toolsets-wrap" id="composerToolsetsWrap" style={{ display: 'inline-block' }}>
+              <button className={`composer-toolsets-chip${showToolsets ? ' active' : ''}`} id="composerToolsetsChip" type="button" onClick={() => setShowToolsets(!showToolsets)} title="Session toolsets">
+                <span className="composer-toolsets-icon" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                </span>
+                <span className="composer-toolsets-label" id="composerToolsetsLabel">Global</span>
+                <span className="composer-toolsets-chevron" aria-hidden="true">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+              </button>
+              {showToolsets && (() => {
+                const chip = document.getElementById('composerToolsetsChip');
+                const rect = chip?.getBoundingClientRect();
+                return createPortal(
+                <div className="composer-toolsets-dropdown open" id="composerToolsetsDropdown" style={{
+                  position: 'fixed',
+                  left: rect ? Math.max(0, rect.right - 260) : 0,
+                  bottom: rect ? window.innerHeight - rect.top + 4 : 0,
+                  zIndex: 99999, minWidth: 260,
+                }}>
+                  <div className="toolsets-dropdown-desc" id="toolsetsDropdownDesc"></div>
+                  <div className="toolsets-dropdown-state" id="toolsetsDropdownState"></div>
+                  <div className="toolsets-dropdown-input-row">
+                    <input type="text" id="toolsetsInput" className="toolsets-input" placeholder="" autoComplete="off"
+                      value={toolsetsInput} onChange={e => setToolsetsInput(e.target.value)} />
+                  </div>
+                  <div className="toolsets-dropdown-actions">
+                    <button type="button" className="toolsets-action-btn toolsets-apply-btn" id="toolsetsApplyBtn"
+                      onClick={() => { setShowToolsets(false); setToolsetsInput(''); }}>Apply</button>
+                    <button type="button" className="toolsets-action-btn toolsets-clear-btn" id="toolsetsClearBtn"
+                      onClick={() => { setShowToolsets(false); setToolsetsInput(''); }}>Clear (global)</button>
+                  </div>
+                </div>,
+                document.body
+                );
+              })()}
+            </div>
           </div>
 
           <div className="composer-right">
@@ -674,7 +923,7 @@ export default function Composer() {
             <div className="composer-mobile-config-action" style={{ padding: '8px 10px', borderRadius: 10 }}>
               <div className="composer-mobile-config-copy">
                 <div className="composer-mobile-config-kicker" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)' }}>Workspace</div>
-                <div className="composer-mobile-config-value" style={{ fontSize: 12, color: 'var(--text)' }}>{currentWorkspace === '.' ? 'default' : currentWorkspace}</div>
+                <div className="composer-mobile-config-value" style={{ fontSize: 12, color: 'var(--text)' }}>{workspaceLabel}</div>
               </div>
             </div>
             <div className="composer-mobile-config-action" style={{ padding: '8px 10px', borderRadius: 10 }}>
@@ -686,18 +935,6 @@ export default function Composer() {
           </div>
         )}
 
-        {/* Slash command autocomplete */}
-        {showCommands && matchingCommands.length > 0 && (
-          <div className="model-picker" style={{ left: 16, right: 'auto', minWidth: 260, maxHeight: 300 }}>
-            {matchingCommands.map(cmd => (
-              <button key={cmd.name} className="model-picker-item" onClick={() => applyCommand(cmd.name)}
-                style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                <span style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: 12 }}>{cmd.name}</span>
-                <span style={{ fontSize: 11, color: 'var(--muted)' }}>{cmd.desc}</span>
-              </button>
-            ))}
-          </div>
-        )}
 
       </div>
     </div>

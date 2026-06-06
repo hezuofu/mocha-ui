@@ -21,12 +21,18 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   show_cli_sessions: true,
   busy_input_mode: 'queue',
   bot_name: 'Hermes',
+  model: (() => { try { return localStorage.getItem('hermes-webui-model') || ''; } catch { return ''; } })(),
   availableModels: [],
 
   async loadSettings() {
     try {
       const s = await api.getSettings();
-      set({ ...s, loaded: true });
+      // Map API field names to store field names
+      set({
+        ...s,
+        model: (s as any).default_model || (s as any).model || '',
+        loaded: true,
+      });
     } catch {
       set({ loaded: true });
     }
