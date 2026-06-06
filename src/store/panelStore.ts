@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import storage from '../util/storage';
 
 export type PanelId =
   | 'chat' | 'tasks' | 'kanban' | 'skills' | 'memory'
@@ -34,11 +35,11 @@ interface PanelState {
 }
 
 export const usePanelStore = create<PanelState>((set) => ({
-  activePanel: 'chat',
+  activePanel: (storage.get('hermes-webui-active-panel') as PanelId) || 'chat',
   isOpen: false,
   insightsPeriod: 30,
-  settingsSection: 'conversation',
-  memorySection: 'agent',
+  settingsSection: (storage.get('hermes-webui-settings-section') as SettingsSection) || 'conversation',
+  memorySection: (storage.get('hermes-webui-memory-section') as MemorySection) || 'memory',
   profileDetailName: null,
   profileMode: 'empty',
   cronDetailId: null,
@@ -47,6 +48,7 @@ export const usePanelStore = create<PanelState>((set) => ({
   skillMode: 'empty',
   switchTo(panel: PanelId) {
     set({ activePanel: panel });
+    storage.set('hermes-webui-active-panel', panel);
   },
   open(panel?: PanelId) {
     set({ isOpen: true, ...(panel ? { activePanel: panel } : {}) });
@@ -59,9 +61,11 @@ export const usePanelStore = create<PanelState>((set) => ({
   },
   setSettingsSection(s: SettingsSection) {
     set({ settingsSection: s });
+    storage.set('hermes-webui-settings-section', s);
   },
   setMemorySection(s: MemorySection) {
     set({ memorySection: s });
+    storage.set('hermes-webui-memory-section', s);
   },
   setProfileDetail(name: string | null, mode: 'read' | 'create' | 'empty' = 'read') {
     set({ profileDetailName: name, profileMode: mode });

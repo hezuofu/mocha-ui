@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { WorkspaceEntry } from '../types';
 import * as api from '../api/endpoints';
+import storage from '../util/storage';
 
 interface WorkspaceState {
   open: boolean;
@@ -27,12 +28,11 @@ interface WorkspaceState {
 }
 
 function getActiveSessionId(): string {
-  try { return localStorage.getItem('hermes-webui-session') || ''; }
-  catch { return ''; }
+  return storage.get('hermes-webui-session') || '';
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
-  open: false,
+  open: storage.get('hermes-webui-workspace-panel') === 'open',
   currentPath: '.',
   entries: [],
   previewPath: null,
@@ -43,10 +43,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   showHidden: false,
 
   toggle() {
-    set(s => ({ open: !s.open }));
+    set(s => {
+      const next = !s.open;
+      storage.set('hermes-webui-workspace-panel', next ? 'open' : 'closed')
+      return { open: next };
+    });
   },
 
   setOpen(open: boolean) {
+    storage.set('hermes-webui-workspace-panel', open ? 'open' : 'closed')
     set({ open });
   },
 
@@ -59,7 +64,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         try {
           const data = await api.createSession();
           sessionId = data.session.session_id;
-          try { localStorage.setItem('hermes-webui-session', sessionId); } catch {}
+          storage.set('hermes-webui-session', sessionId);
         } catch {
           set({ loading: false, entries: [] });
           return;

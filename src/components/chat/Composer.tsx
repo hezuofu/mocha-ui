@@ -300,13 +300,14 @@ export default function Composer() {
   }, [busy, activeSid]);
 
   // Consume suggested input from suggestion pills
+  const suggestedInput = useSessionStore(s => s.suggestedInput);
   useEffect(() => {
-    const suggestion = consumeSuggestion();
-    if (suggestion) {
-      setInput(suggestion);
+    if (suggestedInput) {
+      setInput(suggestedInput);
       textareaRef.current?.focus();
+      consumeSuggestion(); // clear after consuming
     }
-  }, [consumeSuggestion]);
+  }, [suggestedInput, consumeSuggestion]);
 
   // Close dropdowns on outside click
   useEffect(() => {

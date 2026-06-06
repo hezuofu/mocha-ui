@@ -110,8 +110,8 @@ export default function MainArea() {
           <button className="session-jump-btn session-jump-btn--start" onClick={() => messagesRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} style={{ display: messages.length > 5 ? 'flex' : 'none' }}><span aria-hidden="true">↑</span><span>Start</span></button>
           <button className="scroll-to-bottom-btn" style={{ display: showScrollBtn ? 'flex' : 'none' }} onClick={scrollToBottom}><span aria-hidden="true">↓</span><span className="session-jump-btn__text">End</span></button>
           <div className="messages" id="messages" ref={messagesRef}>
+            {messages.length === 0 && !busy && <EmptyState setSuggestedInput={setSuggestedInput} t={t} />}
             <div className="messages-inner">
-              {messages.length === 0 && !busy && <EmptyState setSuggestedInput={setSuggestedInput} t={t} />}
               {messages.map((msg, i) => <MessageItem key={i} message={msg} index={i} isLast={i === messages.length - 1} />)}
               {toolCalls.length > 0 && <ActivityGroup toolCalls={toolCalls} />}
               {isStreaming && <StreamingIndicator />}
