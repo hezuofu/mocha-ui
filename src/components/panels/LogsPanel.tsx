@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { getLogs } from '../../api/endpoints';
 import { useLogsStore } from '../../store/logsStore';
 
@@ -61,8 +61,23 @@ export default function LogsPanel() {
     return true;
   });
 
+  const [copied, setCopied] = useState(false);
   const copyAll = async () => {
-    await navigator.clipboard.writeText(filtered.join('\n'));
+    try {
+      await navigator.clipboard.writeText(filtered.join('\n'));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for non-secure contexts
+      const ta = document.createElement('textarea');
+      ta.value = filtered.join('\n');
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (
@@ -95,9 +110,17 @@ export function LogsControls() {
   const setSeverity = useLogsStore(s => s.setSeverity);
   const setAutoRefresh = useLogsStore(s => s.setAutoRefresh);
   const setWrap = useLogsStore(s => s.setWrap);
+  const [copied, setCopied] = useState(false);
 
   const copyAll = async () => {
-    await navigator.clipboard.writeText(logs.join('\n'));
+    try {
+      await navigator.clipboard.writeText(logs.join('\n'));
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = logs.join('\n'); ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    }
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -122,7 +145,7 @@ export function LogsControls() {
         <input id="logsWrap" type="checkbox" checked={wrap} onChange={e => setWrap(e.target.checked)} />
         <span>Wrap lines</span>
       </label>
-      <button type="button" className="logs-copy" id="logsCopyAll" onClick={copyAll}>Copy all</button>
+      <button type="button" className="logs-copy" id="logsCopyAll" onClick={copyAll}>{copied ? 'Copied!' : 'Copy all'}</button>
     </div>
   );
 }
